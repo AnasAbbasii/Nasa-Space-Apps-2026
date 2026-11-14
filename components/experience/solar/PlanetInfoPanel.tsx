@@ -55,6 +55,8 @@ export default function PlanetInfoPanel({
           aria-label={`${body.name} Information Dossier`}
           onMouseMove={handleMouseMove}
           onMouseLeave={handleMouseLeave}
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           className="w-full flex flex-col rounded-3xl p-5 sm:p-6 overflow-y-auto no-scrollbar transition-transform duration-300 ease-out shadow-[0_20px_50px_rgba(0,0,0,0.65)]"
           style={{
             background: 'rgba(0, 0, 0, 0.35)',
@@ -81,13 +83,6 @@ export default function PlanetInfoPanel({
                 {body.name}
               </h2>
             </div>
-            <button
-              onClick={onClose}
-              aria-label="Close dossier"
-              className="p-1.5 text-white/40 hover:text-white transition-all duration-200 ease-out hover:scale-[1.12] active:scale-[0.92] text-sm leading-none bg-transparent border-0 outline-none cursor-pointer"
-            >
-              ✕
-            </button>
           </div>
 
           {/* Scientific Summary */}
@@ -119,7 +114,7 @@ export default function PlanetInfoPanel({
 
           {/* Earth Moon Gateway Portal */}
           {isEarth && onEnterMoonMuseum && (
-            <div className="py-3.5 border-b border-white/[0.07] space-y-1.5">
+            <div className="py-3.5 space-y-1.5">
               <div className="text-[11px] uppercase tracking-[0.2em] text-white/85 font-light flex items-center gap-1.5">
                 <span className="text-[9px] text-white/40">✦</span>
                 <span>The Moon Archive</span>
@@ -141,7 +136,7 @@ export default function PlanetInfoPanel({
 
           {/* Mars Exploration Gateway Portal */}
           {isMars && onEnterMarsMuseum && (
-            <div className="py-3.5 border-b border-white/[0.07] space-y-1.5">
+            <div className="py-3.5 space-y-1.5">
               <div className="text-[11px] uppercase tracking-[0.2em] text-white/85 font-light flex items-center gap-1.5">
                 <span className="text-[9px] text-white/40">✦</span>
                 <span>Martian Archive</span>
@@ -160,17 +155,6 @@ export default function PlanetInfoPanel({
               </button>
             </div>
           )}
-
-          {/* Return Action */}
-          <div className="pt-3.5">
-            <button
-              onClick={onClose}
-              className="w-full text-left py-1 text-[10px] uppercase tracking-[0.2em] text-white/40 hover:text-white transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.97] origin-left will-change-transform flex items-center gap-1.5 group bg-transparent border-0 outline-none p-0 cursor-pointer"
-            >
-              <span className="transition-transform duration-200 ease-out group-hover:-translate-x-1">←</span>
-              <span>Return to Solar System Overview</span>
-            </button>
-          </div>
         </aside>
       </div>
     </div>

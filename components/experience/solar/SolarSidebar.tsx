@@ -8,6 +8,8 @@ interface SolarSidebarProps {
   onToggle: (open: boolean) => void;
   selectedBody: CelestialBody | null;
   onSelectBody: (body: CelestialBody | null) => void;
+  onEnterMarsMuseum?: () => void;
+  onEnterMoonMuseum?: () => void;
   isPlaying: boolean;
   onTogglePlay: () => void;
   onReset: () => void;
@@ -26,6 +28,8 @@ export default function SolarSidebar({
   onToggle,
   selectedBody,
   onSelectBody,
+  onEnterMarsMuseum,
+  onEnterMoonMuseum,
   isPlaying,
   onTogglePlay,
   onReset,
@@ -145,7 +149,11 @@ export default function SolarSidebar({
               <button
                 key={b.id}
                 onClick={() => {
-                  onSelectBody(b);
+                  if (b.id === 'mars' && onEnterMarsMuseum) {
+                    onEnterMarsMuseum();
+                  } else {
+                    onSelectBody(b);
+                  }
                   onToggle(false);
                 }}
                 className="w-full text-left py-1 sm:py-1.25 px-1.5 flex items-center justify-between text-xs tracking-[0.16em] uppercase font-light transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.97] origin-left will-change-transform bg-transparent border-0 outline-none cursor-pointer group"

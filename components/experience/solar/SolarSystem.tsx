@@ -2,13 +2,21 @@
 
 import React, { useRef, useMemo, Suspense, Component, ReactNode, useState, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
-import { useFrame, useLoader } from '@react-three/fiber';
+import { useFrame, useLoader, useThree } from '@react-three/fiber';
 import { useTexture, Html } from '@react-three/drei';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CELESTIAL_BODIES } from '@/lib/solar-system';
 import type { CelestialBody } from '@/lib/solar-system';
 import { cursorStore } from '@/lib/cursor-store';
 import PlanetOrbit from './PlanetOrbit';
+import { LUNAR_MACHINES } from '@/lib/lunar-machines';
+import type { LunarMachine } from '@/lib/lunar-machines';
+import { MARS_MACHINES } from '@/lib/mars-machines';
+import type { MarsMachine } from '@/lib/mars-machines';
+import LunarMachineObject from '../LunarMachineObject';
+import MarsMachineObject from '../mars/MarsMachineObject';
+import DynamicCallouts from '../DynamicCallouts';
+import MarsCallouts from '../mars/MarsCallouts';
 
 interface Props {
   fallback?: ReactNode;
@@ -34,10 +42,19 @@ class AssetErrorBoundary extends Component<Props, State> {
 interface SolarSystemProps {
   selectedBody: CelestialBody | null;
   onSelectBody: (body: CelestialBody | null) => void;
+  activeMuseum: 'moon' | 'mars' | null;
   onEnterMoonMuseum: () => void;
   onEnterMarsMuseum: () => void;
   isPlaying: boolean;
   planetPositionsRef: React.RefObject<Map<string, THREE.Vector3>>;
+  selectedMachine: LunarMachine | null;
+  hoveredId: string | null;
+  onSelectMachine: (machine: LunarMachine | null) => void;
+  onHoverMachine: (id: string | null) => void;
+  selectedMarsMachine: MarsMachine | null;
+  hoveredMarsId: string | null;
+  onSelectMarsMachine: (machine: MarsMachine | null) => void;
+  onHoverMarsMachine: (id: string | null) => void;
 }
 
 // Model renderer for FBX planetary models
@@ -144,58 +161,287 @@ function SaturnRings({ innerRadius = 1.3, outerRadius = 2.2 }: { innerRadius?: n
   );
 }
 
-// Earth's orbiting Moon gateway - independent interactive object
-function OrbitingMoon({ onEnterMoonMuseum }: { onEnterMoonMuseum: () => void }) {
-  const moonRef = useRef<THREE.Group>(null);
+// Earth's orbiting Moon gateway - independent interactive object with museum annotations
+interface OrbitingMoonProps {
+  activeMuseum: 'moon' | 'mars' | null;
+  onEnterMoonMuseum: () => void;
+  planetPositionsRef: React.RefObject<Map<string, THREE.Vector3>>;
+  selectedMachine: LunarMachine | null;
+  hoveredId: string | null;
+  onSelectMachine: (machine: LunarMachine | null) => void;
+  onHoverMachine: (id: string | null) => void;
+}
+
+function OrbitingMoon({
+  activeMuseum,
+  onEnterMoonMuseum,
+  planetPositionsRef,
+  selectedMachine,
+  hoveredId,
+  onSelectMachine,
+  onHoverMachine,
+}: OrbitingMoonProps) {
+  const moonOrbitRef = useRef<THREE.Group>(null);
+  const moonMeshRef = useRef<THREE.Mesh>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const moonHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { gl } = useThree();
   const moonTexture = useTexture('/textures/moon_2k.jpg');
   moonTexture.colorSpace = THREE.SRGBColorSpace;
+  const moonRadius = 0.20;
+  const isMoonMuseum = activeMuseum === 'moon';
+
+  const handleMoonPointerOver = useCallback((e: any) => {
+    e.stopPropagation();
+    if (moonHoverTimeoutRef.current) {
+      clearTimeout(moonHoverTimeoutRef.current);
+      moonHoverTimeoutRef.current = null;
+    }
+    if (!isMoonMuseum) {
+      setIsHovered(true);
+      cursorStore.set('focus');
+    }
+  }, [isMoonMuseum]);
+
+  const handleMoonPointerOut = useCallback((e: any) => {
+    e.stopPropagation();
+    if (moonHoverTimeoutRef.current) {
+      clearTimeout(moonHoverTimeoutRef.current);
+    }
+    moonHoverTimeoutRef.current = setTimeout(() => {
+      setIsHovered(false);
+      cursorStore.set('default');
+    }, 40);
+  }, []);
+
+  useEffect(() => {
+    const canvas = gl.domElement;
+    const handleLeave = () => {
+      if (moonHoverTimeoutRef.current) {
+        clearTimeout(moonHoverTimeoutRef.current);
+      }
+      setIsHovered(false);
+    };
+    const handleBlur = () => {
+      if (moonHoverTimeoutRef.current) {
+        clearTimeout(moonHoverTimeoutRef.current);
+      }
+      setIsHovered(false);
+    };
+
+    canvas.addEventListener('pointerleave', handleLeave);
+    window.addEventListener('blur', handleBlur);
+
+    return () => {
+      canvas.removeEventListener('pointerleave', handleLeave);
+      window.removeEventListener('blur', handleBlur);
+      if (moonHoverTimeoutRef.current) {
+        clearTimeout(moonHoverTimeoutRef.current);
+      }
+    };
+  }, [gl]);
 
   useFrame((_state, delta) => {
-    if (moonRef.current) {
-      moonRef.current.rotation.y += delta * 0.4;
+    // Orbital revolution around Earth
+    if (moonOrbitRef.current) {
+      if (!isMoonMuseum || !selectedMachine) {
+        moonOrbitRef.current.rotation.y += delta * 0.12;
+      }
+    }
+    // Track Moon world position for camera controller
+    if (moonMeshRef.current && planetPositionsRef.current) {
+      const wp = new THREE.Vector3();
+      moonMeshRef.current.getWorldPosition(wp);
+      planetPositionsRef.current.set('moon', wp);
     }
   });
 
   return (
-    <group ref={moonRef}>
-      <mesh
-        position={[1.25, 0.1, 0]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onEnterMoonMuseum();
-        }}
-        onPointerOver={(e) => {
-          e.stopPropagation();
-          setIsHovered(true);
-          cursorStore.set('focus');
-        }}
-        onPointerOut={(e) => {
-          e.stopPropagation();
-          setIsHovered(false);
-          cursorStore.set('default');
-        }}
-      >
-        <sphereGeometry args={[0.16, 24, 24]} />
-        <meshStandardMaterial
-          map={moonTexture}
-          roughness={0.92}
-          metalness={0.02}
-          emissive="#ffffff"
-          emissiveIntensity={isHovered ? 0.22 : 0}
-        />
-      </mesh>
+    <group ref={moonOrbitRef}>
+      <group position={[1.45, 0.05, 0]}>
+        <mesh
+          ref={moonMeshRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isMoonMuseum) {
+              onSelectMachine(null);
+            } else {
+              onEnterMoonMuseum();
+            }
+          }}
+          onPointerOver={handleMoonPointerOver}
+          onPointerOut={handleMoonPointerOut}
+        >
+          <sphereGeometry args={[moonRadius, 64, 64]} />
+          <meshStandardMaterial
+            map={moonTexture}
+            roughness={0.92}
+            metalness={0.02}
+            emissive="#ffffff"
+            emissiveIntensity={isHovered && !isMoonMuseum ? 0.25 : 0}
+          />
+        </mesh>
+
+        {/* Dynamic Hover Floating Name Label (Hover only) */}
+        {!isMoonMuseum && (
+          <Html
+            position={[0, moonRadius + 0.18, 0]}
+            center
+            distanceFactor={28}
+          >
+            <div
+              className={`select-none pointer-events-none flex flex-col items-center transition-all duration-300 ease-out ${
+                isHovered
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 translate-y-1'
+              }`}
+              style={{
+                willChange: 'opacity, transform',
+                background: 'transparent',
+                border: 'none',
+                padding: 0,
+                margin: 0,
+              }}
+            >
+              <span
+                style={{
+                  fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+                  fontSize: '11px',
+                  fontWeight: 400,
+                  letterSpacing: '0.15em',
+                  textTransform: 'uppercase',
+                  color: '#FFFFFF',
+                  textShadow: '0 1px 4px rgba(0, 0, 0, 0.95), 0 2px 8px rgba(0, 0, 0, 0.85)',
+                  opacity: 0.95,
+                  userSelect: 'none',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Moon
+              </span>
+            </div>
+          </Html>
+        )}
+
+        {/* Lunar Museum Overlay - Abandoned Machines and Callouts */}
+        {isMoonMuseum && (
+          <group>
+            {/* Lunar machines positioned at verified geographic coordinates on the surface */}
+            {LUNAR_MACHINES.map((m) => (
+              <LunarMachineObject
+                key={m.id}
+                machine={m}
+                radius={moonRadius}
+                isActive={m.id === hoveredId || m.id === selectedMachine?.id}
+                onClick={onSelectMachine}
+                onHover={onHoverMachine}
+              />
+            ))}
+
+            <DynamicCallouts
+              machines={LUNAR_MACHINES}
+              radius={moonRadius}
+              distanceFactor={moonRadius * 3.4}
+              hoveredId={hoveredId}
+              onHover={onHoverMachine}
+              selectedMachine={selectedMachine}
+              onSelect={onSelectMachine}
+            />
+          </group>
+        )}
+      </group>
     </group>
+  );
+}
+
+// Dynamic lighting controller that provides balanced illumination during planet focus
+function DynamicFocusLighting({
+  selectedBody,
+  activeMuseum,
+  planetPositionsRef,
+}: {
+  selectedBody: CelestialBody | null;
+  activeMuseum: 'moon' | 'mars' | null;
+  planetPositionsRef: React.RefObject<Map<string, THREE.Vector3>>;
+}) {
+  const ambientLightRef = useRef<THREE.AmbientLight>(null);
+  const keyLightRef = useRef<THREE.DirectionalLight>(null);
+  const fillLightRef = useRef<THREE.DirectionalLight>(null);
+
+  useFrame(() => {
+    const isFocused = !!selectedBody || !!activeMuseum;
+    const isSun = selectedBody?.id === 'sun';
+
+    // 1. Ambient Light Adjustment
+    // In overview: 0.08 ambient.
+    // In focus: smoothly lerp to 0.30 so dark side has natural ambient detail and never crushes to pure black.
+    const targetAmbient = isFocused ? 0.30 : 0.08;
+    if (ambientLightRef.current) {
+      ambientLightRef.current.intensity = THREE.MathUtils.lerp(
+        ambientLightRef.current.intensity,
+        targetAmbient,
+        0.06,
+      );
+    }
+
+    // 2. Focused Planet Key & Fill Lights
+    if (isFocused && !isSun) {
+      const targetId = activeMuseum === 'moon' ? 'moon' : activeMuseum === 'mars' ? 'mars' : selectedBody?.id;
+      const planetPos = targetId && planetPositionsRef.current ? planetPositionsRef.current.get(targetId) : null;
+
+      if (planetPos && keyLightRef.current && fillLightRef.current) {
+        // Key light shines from Sun's direction toward the planet with natural sunlight
+        const sunDir = planetPos.lengthSq() > 0.01 ? planetPos.clone().normalize() : new THREE.Vector3(0, 0, 1);
+        const keyPos = planetPos.clone().sub(sunDir.multiplyScalar(4.0));
+        keyPos.y += 1.5;
+        keyLightRef.current.position.copy(keyPos);
+        keyLightRef.current.target.position.copy(planetPos);
+        keyLightRef.current.target.updateMatrixWorld();
+        keyLightRef.current.intensity = THREE.MathUtils.lerp(keyLightRef.current.intensity, 2.4, 0.08);
+
+        // Fill light shines softly from the side/camera direction
+        const fillPos = planetPos.clone().add(new THREE.Vector3(sunDir.z * 3.5, 2.0, -sunDir.x * 3.5));
+        fillLightRef.current.position.copy(fillPos);
+        fillLightRef.current.target.position.copy(planetPos);
+        fillLightRef.current.target.updateMatrixWorld();
+        fillLightRef.current.intensity = THREE.MathUtils.lerp(fillLightRef.current.intensity, 0.70, 0.08);
+      }
+    } else {
+      // Fade out focus key and fill lights when in overview or focusing the Sun
+      if (keyLightRef.current) {
+        keyLightRef.current.intensity = THREE.MathUtils.lerp(keyLightRef.current.intensity, 0, 0.08);
+      }
+      if (fillLightRef.current) {
+        fillLightRef.current.intensity = THREE.MathUtils.lerp(fillLightRef.current.intensity, 0, 0.08);
+      }
+    }
+  });
+
+  return (
+    <>
+      <ambientLight ref={ambientLightRef} intensity={0.08} />
+      <directionalLight ref={keyLightRef} intensity={0} color="#fffcf5" />
+      <directionalLight ref={fillLightRef} intensity={0} color="#dbeafe" />
+    </>
   );
 }
 
 export default function SolarSystem({
   selectedBody,
   onSelectBody,
+  activeMuseum,
   onEnterMoonMuseum,
   onEnterMarsMuseum,
   isPlaying,
   planetPositionsRef,
+  selectedMachine,
+  hoveredId,
+  onSelectMachine,
+  onHoverMachine,
+  selectedMarsMachine,
+  hoveredMarsId,
+  onSelectMarsMachine,
+  onHoverMarsMachine,
 }: SolarSystemProps) {
   // Orbital angles ref for each celestial body
   const anglesRef = useRef<Map<string, number>>(new Map());
@@ -204,6 +450,7 @@ export default function SolarSystem({
   // Interactive hover tracking with debounce to eliminate child-mesh boundary flicker
   const [hoveredBodyId, setHoveredBodyId] = useState<string | null>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { gl } = useThree();
 
   const handlePointerOver = useCallback((id: string) => {
     if (hoverTimeoutRef.current) {
@@ -225,12 +472,33 @@ export default function SolarSystem({
   }, []);
 
   useEffect(() => {
+    const canvas = gl.domElement;
+    const handleLeave = () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      setHoveredBodyId(null);
+      cursorStore.set('default');
+    };
+    const handleBlur = () => {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+      }
+      setHoveredBodyId(null);
+      cursorStore.set('default');
+    };
+
+    canvas.addEventListener('pointerleave', handleLeave);
+    window.addEventListener('blur', handleBlur);
+
     return () => {
+      canvas.removeEventListener('pointerleave', handleLeave);
+      window.removeEventListener('blur', handleBlur);
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
       }
     };
-  }, []);
+  }, [gl]);
 
   // Initialize initial orbital angles with scientific spacing
   useMemo(() => {
@@ -271,7 +539,10 @@ export default function SolarSystem({
       }
 
       // Axial rotation
-      group.rotation.y += b.rotationSpeed * delta * 15;
+      const isMarsFrozen = b.id === 'mars' && activeMuseum === 'mars' && selectedMarsMachine !== null;
+      if (!isMarsFrozen) {
+        group.rotation.y += b.rotationSpeed * delta * 15;
+      }
     });
   });
 
@@ -279,14 +550,17 @@ export default function SolarSystem({
     <group>
       {/* Primary Sunlight radiating from the Sun at center */}
       <pointLight position={[0, 0, 0]} intensity={4.5} decay={0.6} distance={150} color="#fffcf5" />
-      <ambientLight intensity={0.06} />
+      <DynamicFocusLighting
+        selectedBody={selectedBody}
+        activeMuseum={activeMuseum}
+        planetPositionsRef={planetPositionsRef}
+      />
 
       {/* Orbit paths */}
       {CELESTIAL_BODIES.filter((b) => b.orbitRadius > 0).map((b) => (
         <PlanetOrbit
           key={`orbit-${b.id}`}
           radius={b.orbitRadius}
-          highlighted={selectedBody?.id === b.id}
         />
       ))}
 
@@ -296,9 +570,10 @@ export default function SolarSystem({
         const isSaturn = b.id === 'saturn';
         const isEarth = b.id === 'earth';
         const isMars = b.id === 'mars';
-        const isSelected = selectedBody?.id === b.id;
         const isHovered = hoveredBodyId === b.id;
-        const showLabel = isSelected || isHovered;
+        const isMuseumActive = activeMuseum !== null;
+        // Hover only: selection or focus must NEVER make the planet name appear
+        const showLabel = !isMuseumActive && isHovered;
 
         return (
           <group
@@ -321,7 +596,17 @@ export default function SolarSystem({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                onSelectBody(b);
+                if (b.id === 'mars') {
+                  if (activeMuseum === 'mars') {
+                    onSelectMarsMachine(null);
+                  } else {
+                    onEnterMarsMuseum();
+                  }
+                } else if (selectedBody?.id === b.id) {
+                  onSelectBody(null);
+                } else {
+                  onSelectBody(b);
+                }
               }}
             >
               {/* Interactive Hit Area */}
@@ -377,79 +662,101 @@ export default function SolarSystem({
                   </Suspense>
                 </AssetErrorBoundary>
               )}
+
+              {/* Mars Museum Overlay - Abandoned Machines and Callouts */}
+              {isMars && activeMuseum === 'mars' && (
+                <group>
+                  {/* Surface click target for deselecting machine */}
+                  <mesh
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onSelectMarsMachine(null);
+                    }}
+                    visible={false}
+                  >
+                    <sphereGeometry args={[b.planetRadius * 1.002, 32, 32]} />
+                    <meshBasicMaterial />
+                  </mesh>
+
+                  {/* Martian machines positioned at verified geographic coordinates on Mars */}
+                  {MARS_MACHINES.map((m) => (
+                    <MarsMachineObject
+                      key={m.id}
+                      machine={m}
+                      radius={b.planetRadius}
+                      isActive={m.id === hoveredMarsId || m.id === selectedMarsMachine?.id}
+                      onClick={onSelectMarsMachine}
+                      onHover={onHoverMarsMachine}
+                    />
+                  ))}
+
+                  <MarsCallouts
+                    machines={MARS_MACHINES}
+                    radius={b.planetRadius}
+                    distanceFactor={b.planetRadius * 3.4}
+                    hoveredId={hoveredMarsId}
+                    onHover={onHoverMarsMachine}
+                    selectedMachine={selectedMarsMachine}
+                    onSelect={onSelectMarsMachine}
+                  />
+                </group>
+              )}
             </group>
 
             {/* Earth's Moon - Independent Sibling Celestial Object */}
             {isEarth && (
               <AssetErrorBoundary fallback={null}>
                 <Suspense fallback={null}>
-                  <OrbitingMoon onEnterMoonMuseum={onEnterMoonMuseum} />
+                  <OrbitingMoon
+                    activeMuseum={activeMuseum}
+                    onEnterMoonMuseum={onEnterMoonMuseum}
+                    planetPositionsRef={planetPositionsRef}
+                    selectedMachine={selectedMachine}
+                    hoveredId={hoveredId}
+                    onSelectMachine={onSelectMachine}
+                    onHoverMachine={onHoverMachine}
+                  />
                 </Suspense>
               </AssetErrorBoundary>
             )}
 
-            {/* Subtle white selection highlight ring */}
-            {isSelected && !isSun && (
-              <mesh rotation={[Math.PI / 2, 0, 0]}>
-                <ringGeometry args={[b.planetRadius * 1.35, b.planetRadius * 1.42, 48]} />
-                <meshBasicMaterial
-                  color="#ffffff"
-                  transparent
-                  opacity={0.35}
-                  side={THREE.DoubleSide}
-                />
-              </mesh>
-            )}
-
-            {/* Dynamic Hover & Selection Floating Name Label (Hidden by default) */}
+            {/* Dynamic Hover Floating Name Label (Hover only) */}
             <Html
               position={[0, b.planetRadius + (isSun ? 0.8 : isSaturn ? 0.65 : 0.45), 0]}
               center
               distanceFactor={28}
             >
               <div
-                onPointerEnter={() => handlePointerOver(b.id)}
-                onPointerLeave={() => handlePointerOut(b.id)}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSelectBody(b);
-                }}
-                className={`select-none flex flex-col items-center transition-all duration-300 ease-out ${
+                className={`select-none pointer-events-none flex flex-col items-center transition-all duration-300 ease-out ${
                   showLabel
-                    ? 'opacity-100 translate-y-0 pointer-events-auto cursor-pointer'
-                    : 'opacity-0 translate-y-1 pointer-events-none'
+                    ? 'opacity-100 translate-y-0'
+                    : 'opacity-0 translate-y-1'
                 }`}
                 style={{
                   willChange: 'opacity, transform',
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
+                  margin: 0,
                 }}
-                data-cursor="focus"
               >
                 {/* Planet Name in Space Grotesk */}
                 <span
                   style={{
                     fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
                     fontSize: '11px',
-                    fontWeight: 500,
-                    letterSpacing: '0.2em',
+                    fontWeight: 400,
+                    letterSpacing: '0.15em',
                     textTransform: 'uppercase',
                     color: '#FFFFFF',
                     textShadow: '0 1px 4px rgba(0, 0, 0, 0.95), 0 2px 8px rgba(0, 0, 0, 0.85)',
-                    opacity: isSelected ? 1 : 0.88,
+                    opacity: 0.95,
                     userSelect: 'none',
                     whiteSpace: 'nowrap',
                   }}
-                  className="transition-opacity duration-200"
                 >
                   {b.name}
                 </span>
-
-                {/* Micro-dot indicator when selected */}
-                {isSelected && (
-                  <span className="h-0.5 w-0.5 rounded-full bg-white mt-0.5 opacity-90" />
-                )}
               </div>
             </Html>
           </group>

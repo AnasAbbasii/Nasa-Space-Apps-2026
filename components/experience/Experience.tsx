@@ -8,91 +8,35 @@ import ThreeDotLoader from '@/components/ThreeDotLoader';
 import { cursorStore } from '@/lib/cursor-store';
 
 // Moon Museum Components & Data
-import { LUNAR_MACHINES } from '@/lib/lunar-machines';
 import type { LunarMachine } from '@/lib/lunar-machines';
-import { MOON_RADIUS, latLonToVector3 } from '@/lib/moon-coords';
-import Moon from './Moon';
-import DynamicCallouts from './DynamicCallouts';
 import InfoPanel from './InfoPanel';
 
 // Mars Museum Components & Data
-import { MARS_MACHINES } from '@/lib/mars-machines';
 import type { MarsMachine } from '@/lib/mars-machines';
-import { MARS_RADIUS, marsLatLonToVector3 } from '@/lib/mars-coords';
-import Mars from './mars/Mars';
-import MarsCallouts from './mars/MarsCallouts';
 import MarsInfoPanel from './mars/MarsInfoPanel';
 
 // Solar System Components & Data
-import { CELESTIAL_BODIES } from '@/lib/solar-system';
 import type { CelestialBody } from '@/lib/solar-system';
 import SolarSystem from './solar/SolarSystem';
 import PlanetInfoPanel from './solar/PlanetInfoPanel';
 import SolarSidebar from './solar/SolarSidebar';
 
-type ViewMode = 'solar' | 'moon' | 'mars';
-
-function MoonArchiveLogo() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.25"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-white/85"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="8.5" strokeOpacity="0.9" />
-      <path d="M12 3.5 A 8.5 8.5 0 0 0 12 20.5 A 6.5 8.5 0 0 1 12 3.5" strokeOpacity="0.45" />
-      <circle cx="10" cy="10" r="0.75" fill="currentColor" fillOpacity="0.6" stroke="none" />
-      <circle cx="14" cy="14" r="0.5" fill="currentColor" fillOpacity="0.5" stroke="none" />
-    </svg>
-  );
-}
-
-function MarsArchiveLogo() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.25"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className="text-white/85"
-      aria-hidden="true"
-    >
-      <circle cx="12" cy="12" r="8.5" strokeOpacity="0.9" />
-      <ellipse cx="12" cy="12" rx="8.5" ry="3.2" strokeOpacity="0.45" transform="rotate(-25 12 12)" />
-      <circle cx="12" cy="12" r="1" fill="currentColor" fillOpacity="0.7" stroke="none" />
-    </svg>
-  );
-}
+type MuseumMode = 'moon' | 'mars' | null;
 
 interface CameraControllerProps {
-  viewMode: ViewMode;
+  activeMuseum: MuseumMode;
+  selectedBody: CelestialBody | null;
   selectedMachine: LunarMachine | null;
   selectedMarsMachine: MarsMachine | null;
-  selectedBody: CelestialBody | null;
-  moonGroupRef: React.RefObject<THREE.Group | null>;
-  marsGroupRef: React.RefObject<THREE.Group | null>;
   controlsRef: React.RefObject<React.ComponentRef<typeof OrbitControls> | null>;
   planetPositionsRef: React.RefObject<Map<string, THREE.Vector3>>;
 }
 
 function CameraController({
-  viewMode,
+  activeMuseum,
+  selectedBody,
   selectedMachine,
   selectedMarsMachine,
-  selectedBody,
-  moonGroupRef,
-  marsGroupRef,
   controlsRef,
   planetPositionsRef,
 }: CameraControllerProps) {
@@ -100,82 +44,129 @@ function CameraController({
   const targetCamPos = useRef(new THREE.Vector3(0, 22, 36));
   const targetLookAt = useRef(new THREE.Vector3(0, 0, 0));
 
-  // Handle camera targets on viewMode / selection changes
+  // Handle camera targets on activeMuseum / selection changes
   useEffect(() => {
-    if (viewMode === 'moon') {
-      if (selectedMachine && moonGroupRef.current) {
-        // Machine geographic location on Moon surface
-        const localPos = latLonToVector3(
-          selectedMachine.lat,
-          selectedMachine.lon,
-          MOON_RADIUS,
-        );
-        const worldPos = localPos.clone().applyEuler(moonGroupRef.current.rotation);
-        const outwardNormal = worldPos.clone().normalize();
-        targetCamPos.current.copy(worldPos).add(outwardNormal.multiplyScalar(0.70));
-        targetLookAt.current.copy(worldPos);
-      } else {
-        // Full Moon overview
-        targetCamPos.current.set(0, 0, 5.5);
-        targetLookAt.current.set(0, 0, 0);
-      }
+    if (activeMuseum === 'moon') {
+      const livePos = planetPositionsRef.current.get('moon') ?? new THREE.Vector3(8.8 + 1.45, 0, 0);
+      const focusDist = selectedMachine ? 0.20 * 2.8 : 0.20 * 3.4;
+      const targetCam = new THREE.Vector3(
+        livePos.x,
+        livePos.y + (selectedMachine ? focusDist * 0.18 : focusDist * 0.22),
+        livePos.z + focusDist * 0.95,
+      );
+      targetCamPos.current.copy(targetCam);
+
+      // Offset target slightly right to position planet center-left (approx 48-52% of viewport width)
+      const camToPlanet = livePos.clone().sub(targetCam).normalize();
+      const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+      const defaultOffset = 0.20 * 0.45;
+      const selectedOffset = 0.20 * 0.70;
+      const frameOffset = camRight.multiplyScalar(selectedMachine ? selectedOffset : defaultOffset);
+      targetLookAt.current.copy(livePos).add(frameOffset);
       isTransitioningRef.current = true;
-    } else if (viewMode === 'mars') {
-      if (selectedMarsMachine && marsGroupRef.current) {
-        // Machine geographic location on Mars surface
-        const localPos = marsLatLonToVector3(
-          selectedMarsMachine.lat,
-          selectedMarsMachine.lon,
-          MARS_RADIUS,
-        );
-        const worldPos = localPos.clone().applyEuler(marsGroupRef.current.rotation);
-        const outwardNormal = worldPos.clone().normalize();
-        targetCamPos.current.copy(worldPos).add(outwardNormal.multiplyScalar(0.70));
-        targetLookAt.current.copy(worldPos);
-      } else {
-        // Full Mars overview
-        targetCamPos.current.set(0, 0, 5.5);
-        targetLookAt.current.set(0, 0, 0);
-      }
+    } else if (activeMuseum === 'mars') {
+      const livePos = planetPositionsRef.current.get('mars') ?? new THREE.Vector3(11.4, 0, 0);
+      const focusDist = selectedMarsMachine ? 0.42 * 2.8 : 0.42 * 3.4;
+      const targetCam = new THREE.Vector3(
+        livePos.x,
+        livePos.y + (selectedMarsMachine ? focusDist * 0.18 : focusDist * 0.22),
+        livePos.z + focusDist * 0.95,
+      );
+      targetCamPos.current.copy(targetCam);
+
+      // Offset target slightly right to position planet center-left (approx 48-52% of viewport width)
+      const camToPlanet = livePos.clone().sub(targetCam).normalize();
+      const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+      const defaultOffset = 0.42 * 0.45;
+      const selectedOffset = 0.42 * 0.70;
+      const frameOffset = camRight.multiplyScalar(selectedMarsMachine ? selectedOffset : defaultOffset);
+      targetLookAt.current.copy(livePos).add(frameOffset);
+      isTransitioningRef.current = true;
+    } else if (selectedBody && planetPositionsRef.current) {
+      const livePos = planetPositionsRef.current.get(selectedBody.id) ?? new THREE.Vector3();
+      const focusDist = selectedBody.id === 'saturn'
+        ? selectedBody.planetRadius * 4.6
+        : selectedBody.id === 'sun'
+        ? selectedBody.planetRadius * 3.2
+        : selectedBody.planetRadius * 3.4;
+
+      const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
+      const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
+      const toSun = radial.clone().negate();
+
+      // Position camera to see sunlit quarter with slight elevation
+      const camX = livePos.x + toSun.x * (focusDist * 0.65) + tangent.x * (focusDist * 0.65);
+      const camY = livePos.y + focusDist * 0.28;
+      const camZ = livePos.z + toSun.z * (focusDist * 0.65) + tangent.z * (focusDist * 0.65);
+      targetCamPos.current.set(camX, camY, camZ);
+
+      // Frame planet on the left by offsetting target towards the right
+      const camToPlanet = livePos.clone().sub(targetCamPos.current).normalize();
+      const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+      const frameOffset = camRight.multiplyScalar(selectedBody.planetRadius * 0.65);
+      targetLookAt.current.copy(livePos).add(frameOffset);
       isTransitioningRef.current = true;
     } else {
-      // Solar System view mode
-      if (selectedBody && planetPositionsRef.current) {
-        const livePos = planetPositionsRef.current.get(selectedBody.id) ?? new THREE.Vector3();
-        const focusDist = selectedBody.id === 'saturn'
-          ? selectedBody.planetRadius * 4.6
-          : selectedBody.id === 'sun'
-          ? selectedBody.planetRadius * 3.2
-          : selectedBody.planetRadius * 3.4;
-
-        const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
-        const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
-
-        // Position camera to see sunlit quarter with slight elevation
-        const camX = livePos.x + radial.x * (focusDist * 0.85) + tangent.x * (focusDist * 0.4);
-        const camY = livePos.y + focusDist * 0.32;
-        const camZ = livePos.z + radial.z * (focusDist * 0.85) + tangent.z * (focusDist * 0.4);
-        targetCamPos.current.set(camX, camY, camZ);
-
-        // Frame planet on the left by offsetting target towards the right
-        const camToPlanet = livePos.clone().sub(targetCamPos.current).normalize();
-        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
-        const frameOffset = camRight.multiplyScalar(selectedBody.planetRadius * 0.65);
-        targetLookAt.current.copy(livePos).add(frameOffset);
-      } else {
-        // Solar System overview
-        targetCamPos.current.set(0, 22, 36);
-        targetLookAt.current.set(0, 0, 0);
-      }
+      // Solar System overview
+      targetCamPos.current.set(0, 22, 36);
+      targetLookAt.current.set(0, 0, 0);
       isTransitioningRef.current = true;
     }
-  }, [viewMode, selectedMachine, selectedMarsMachine, selectedBody, moonGroupRef, marsGroupRef, planetPositionsRef]);
+  }, [activeMuseum, selectedBody, selectedMachine, selectedMarsMachine, planetPositionsRef]);
 
   useFrame((state) => {
     if (!controlsRef.current) return;
 
-    // Follow moving planet dynamically if in solar view and body is selected
-    if (viewMode === 'solar' && selectedBody && planetPositionsRef.current) {
+    // Follow moving Moon in Moon Museum mode
+    if (activeMuseum === 'moon' && planetPositionsRef.current) {
+      const livePos = planetPositionsRef.current.get('moon');
+      if (livePos) {
+        const focusDist = selectedMachine ? 0.20 * 2.8 : 0.20 * 3.4;
+        const targetCam = new THREE.Vector3(
+          livePos.x,
+          livePos.y + (selectedMachine ? focusDist * 0.18 : focusDist * 0.22),
+          livePos.z + focusDist * 0.95,
+        );
+        const camToPlanet = livePos.clone().sub(targetCam).normalize();
+        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+        const defaultOffset = 0.20 * 0.45;
+        const selectedOffset = 0.20 * 0.70;
+        const frameOffset = camRight.multiplyScalar(selectedMachine ? selectedOffset : defaultOffset);
+        const desiredTarget = livePos.clone().add(frameOffset);
+
+        state.camera.position.lerp(targetCam, 0.05);
+        controlsRef.current.target.lerp(desiredTarget, 0.05);
+        controlsRef.current.update();
+        return;
+      }
+    }
+
+    // Follow moving Mars in Mars Museum mode
+    if (activeMuseum === 'mars' && planetPositionsRef.current) {
+      const livePos = planetPositionsRef.current.get('mars');
+      if (livePos) {
+        const focusDist = selectedMarsMachine ? 0.42 * 2.8 : 0.42 * 3.4;
+        const targetCam = new THREE.Vector3(
+          livePos.x,
+          livePos.y + (selectedMarsMachine ? focusDist * 0.18 : focusDist * 0.22),
+          livePos.z + focusDist * 0.95,
+        );
+        const camToPlanet = livePos.clone().sub(targetCam).normalize();
+        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+        const defaultOffset = 0.42 * 0.45;
+        const selectedOffset = 0.42 * 0.70;
+        const frameOffset = camRight.multiplyScalar(selectedMarsMachine ? selectedOffset : defaultOffset);
+        const desiredTarget = livePos.clone().add(frameOffset);
+
+        state.camera.position.lerp(targetCam, 0.05);
+        controlsRef.current.target.lerp(desiredTarget, 0.05);
+        controlsRef.current.update();
+        return;
+      }
+    }
+
+    // Follow moving planet dynamically if in ordinary solar view and body is selected
+    if (!activeMuseum && selectedBody && planetPositionsRef.current) {
       const livePos = planetPositionsRef.current.get(selectedBody.id);
       if (livePos) {
         const focusDist = selectedBody.id === 'saturn'
@@ -186,10 +177,11 @@ function CameraController({
 
         const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
         const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
+        const toSun = radial.clone().negate();
 
-        const camX = livePos.x + radial.x * (focusDist * 0.85) + tangent.x * (focusDist * 0.4);
-        const camY = livePos.y + focusDist * 0.32;
-        const camZ = livePos.z + radial.z * (focusDist * 0.85) + tangent.z * (focusDist * 0.4);
+        const camX = livePos.x + toSun.x * (focusDist * 0.65) + tangent.x * (focusDist * 0.65);
+        const camY = livePos.y + focusDist * 0.28;
+        const camZ = livePos.z + toSun.z * (focusDist * 0.65) + tangent.z * (focusDist * 0.65);
         const desiredPos = new THREE.Vector3(camX, camY, camZ);
 
         const camToPlanet = livePos.clone().sub(desiredPos).normalize();
@@ -219,21 +211,11 @@ function CameraController({
 }
 
 function FrameReadyReporter({
-  viewMode,
   onReady,
 }: {
-  viewMode: ViewMode;
   onReady: () => void;
 }) {
-  const currentModeRef = useRef(viewMode);
   const frameCountRef = useRef(0);
-
-  useEffect(() => {
-    if (currentModeRef.current !== viewMode) {
-      currentModeRef.current = viewMode;
-      frameCountRef.current = 0;
-    }
-  }, [viewMode]);
 
   useFrame(() => {
     if (frameCountRef.current < 2) {
@@ -287,8 +269,8 @@ function ExperienceLoader({ isBusy }: { isBusy: boolean }) {
 }
 
 export default function Experience() {
-  // Master View Mode: 'solar' | 'moon' | 'mars'
-  const [viewMode, setViewMode] = useState<ViewMode>('solar');
+  // Master Museum Mode: 'moon' | 'mars' | null
+  const [activeMuseum, setActiveMuseum] = useState<MuseumMode>(null);
   const [modeReady, setModeReady] = useState(false);
   const { active, errors, progress } = useProgress();
   const isBusy = (!modeReady || active) && !(errors.length > 0 && progress === 100);
@@ -302,87 +284,74 @@ export default function Experience() {
   // Moon museum state
   const [selectedMachine, setSelectedMachine] = useState<LunarMachine | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [autoRotateMoon, setAutoRotateMoon] = useState(true);
-  const moonGroupRef = useRef<THREE.Group>(null);
 
   // Mars museum state
   const [selectedMarsMachine, setSelectedMarsMachine] = useState<MarsMachine | null>(null);
   const [hoveredMarsId, setHoveredMarsId] = useState<string | null>(null);
-  const [autoRotateMars, setAutoRotateMars] = useState(true);
-  const marsGroupRef = useRef<THREE.Group>(null);
 
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
 
-  // Switch to Moon Museum
+  // Switch to Moon Museum: zooms to the existing Moon in Solar System
   const handleEnterMoonMuseum = useCallback(() => {
     setSelectedBody(null);
     setSelectedMachine(null);
     setHoveredId(null);
-    setModeReady(false);
-    setViewMode('moon');
+    setActiveMuseum('moon');
   }, []);
 
-  // Switch to Mars Museum
+  // Switch to Mars Museum: zooms to the existing Mars in Solar System
   const handleEnterMarsMuseum = useCallback(() => {
     setSelectedBody(null);
     setSelectedMarsMachine(null);
     setHoveredMarsId(null);
-    setModeReady(false);
-    setViewMode('mars');
+    setActiveMuseum('mars');
   }, []);
 
-  // Return to Solar System
+  const handleSelectBody = useCallback((body: CelestialBody | null) => {
+    if (body?.id === 'mars') {
+      handleEnterMarsMuseum();
+    } else {
+      setSelectedBody(body);
+    }
+  }, [handleEnterMarsMuseum]);
+
+  // Return to full Solar System overview
   const handleReturnToSolar = useCallback(() => {
+    setActiveMuseum(null);
+    setSelectedBody(null);
     setSelectedMachine(null);
     setSelectedMarsMachine(null);
     setHoveredId(null);
     setHoveredMarsId(null);
-    setSelectedBody(null);
-    setModeReady(false);
-    setViewMode('solar');
-  }, []);
-
-  const handleSelectMachine = useCallback((machine: LunarMachine | null) => {
-    setSelectedMachine(machine);
-    if (machine) {
-      setAutoRotateMoon(false);
-    }
-  }, []);
-
-  const handleSelectMarsMachine = useCallback((machine: MarsMachine | null) => {
-    setSelectedMarsMachine(machine);
-    if (machine) {
-      setAutoRotateMars(false);
-    }
   }, []);
 
   const handleReset = useCallback(() => {
-    if (viewMode === 'moon') {
+    if (activeMuseum === 'moon') {
       setSelectedMachine(null);
       setHoveredId(null);
-      setAutoRotateMoon(true);
-    } else if (viewMode === 'mars') {
+    } else if (activeMuseum === 'mars') {
       setSelectedMarsMachine(null);
       setHoveredMarsId(null);
-      setAutoRotateMars(true);
     } else {
       setSelectedBody(null);
     }
-  }, [viewMode]);
+  }, [activeMuseum]);
 
   return (
     <div className="relative w-full h-full select-none">
       {/* Premium Three-Dot Scene & Asset Loading Indicator */}
       <ExperienceLoader isBusy={isBusy} />
 
-      {/* Solar System Mode: Truly Transparent Liquid Glass Collapsible Sidebar & Museum Shortcuts */}
-      {viewMode === 'solar' && (
+      {/* Solar System Mode Controls: Truly Transparent Liquid Glass Collapsible Sidebar & Museum Shortcuts */}
+      {activeMuseum === null && (
         <>
           <SolarSidebar
             isOpen={sidebarOpen}
             onToggle={setSidebarOpen}
             selectedBody={selectedBody}
-            onSelectBody={setSelectedBody}
+            onSelectBody={handleSelectBody}
+            onEnterMarsMuseum={handleEnterMarsMuseum}
+            onEnterMoonMuseum={handleEnterMoonMuseum}
             isPlaying={isPlaying}
             onTogglePlay={() => setIsPlaying(!isPlaying)}
             onReset={handleReset}
@@ -400,7 +369,7 @@ export default function Experience() {
             <button
               type="button"
               onClick={handleEnterMoonMuseum}
-              aria-label="Explore Moon Museum"
+              aria-label="Explore Moon"
               className="group inline-flex items-center justify-center h-[38px] px-4 rounded-full text-xs sm:text-[13px] tracking-[0.16em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] will-change-transform border-0 outline-none cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
               style={{
                 background: 'rgba(0, 0, 0, 0.28)',
@@ -410,13 +379,13 @@ export default function Experience() {
                 fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
               }}
             >
-              <span>Moon Museum</span>
+              <span>Moon</span>
             </button>
 
             <button
               type="button"
               onClick={handleEnterMarsMuseum}
-              aria-label="Explore Mars Museum"
+              aria-label="Explore Mars"
               className="group inline-flex items-center justify-center h-[38px] px-4 rounded-full text-xs sm:text-[13px] tracking-[0.16em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] will-change-transform border-0 outline-none cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
               style={{
                 background: 'rgba(0, 0, 0, 0.28)',
@@ -426,49 +395,58 @@ export default function Experience() {
                 fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
               }}
             >
-              <span>Mars Museum</span>
+              <span>Mars</span>
             </button>
           </nav>
         </>
       )}
 
-      {/* Moon & Mars Modes: Minimal Left-Side Header */}
-      {viewMode !== 'solar' && (
-        <header className="absolute top-6 left-6 z-20 pointer-events-auto flex flex-col gap-1.5 select-none">
-          {/* Museum Identity */}
-          <div className="flex items-center gap-2.5">
-            {viewMode === 'moon' ? <MoonArchiveLogo /> : <MarsArchiveLogo />}
-            <span
+      {/* Moon & Mars Museum Header: Centered Title & Left Return Button */}
+      {activeMuseum !== null && (
+        <header className="fixed top-0 left-0 right-0 z-20 pointer-events-none select-none">
+          {/* Upper-Left: Return Button (Text Only, Transparent, No Arrow, No Border) */}
+          <div
+            className="absolute pointer-events-auto"
+            style={{
+              top: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))',
+              left: 'max(1.25rem, env(safe-area-inset-left, 1.25rem))',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleReturnToSolar}
+              className="text-[11px] sm:text-xs tracking-[0.16em] uppercase font-normal text-white/60 hover:text-white transition-opacity duration-200 ease-out bg-transparent border-0 outline-none p-0 cursor-pointer"
+              style={{
+                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+              }}
+              aria-label="Return to Solar System"
+            >
+              Return to Solar System
+            </button>
+          </div>
+
+          {/* Centered Museum Title (Mathematically Centered Relative to Entire Viewport) */}
+          <div
+            className="w-full flex justify-center pointer-events-none"
+            style={{
+              paddingTop: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))',
+            }}
+          >
+            <h1
+              className="text-xs sm:text-[13px] tracking-[0.22em] uppercase font-medium text-white select-none m-0 p-0 leading-none"
               style={{
                 fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
                 fontWeight: 500,
               }}
-              className="text-sm tracking-[0.2em] uppercase text-white/95 leading-none"
             >
-              {viewMode === 'moon' ? 'Moon Archives' : 'Mars Archives'}
-            </span>
-          </div>
-
-          {/* Secondary Return Control */}
-          <div>
-            <button
-              onClick={handleReturnToSolar}
-              className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/50 hover:text-white transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.97] origin-left will-change-transform bg-transparent border-0 outline-none p-0 cursor-pointer group mt-0.5"
-              aria-label="Return to Solar System"
-            >
-              <span className="transition-transform duration-200 ease-out group-hover:-translate-x-1 text-white/40 group-hover:text-white">
-                ←
-              </span>
-              <span className="font-light">
-                Return to Solar System
-              </span>
-            </button>
+              {activeMuseum === 'moon' ? 'MOON MUSEUM' : 'MARS MUSEUM'}
+            </h1>
           </div>
         </header>
       )}
 
       {/* Info Panels */}
-      {viewMode === 'solar' && selectedBody && (
+      {activeMuseum === null && selectedBody && (
         <PlanetInfoPanel
           body={selectedBody}
           onClose={() => setSelectedBody(null)}
@@ -477,22 +455,22 @@ export default function Experience() {
         />
       )}
 
-      {viewMode === 'moon' && selectedMachine && (
+      {activeMuseum === 'moon' && selectedMachine && (
         <InfoPanel
           machine={selectedMachine}
-          onClose={() => handleSelectMachine(null)}
+          onClose={() => setSelectedMachine(null)}
         />
       )}
 
-      {viewMode === 'mars' && selectedMarsMachine && (
+      {activeMuseum === 'mars' && selectedMarsMachine && (
         <MarsInfoPanel
           machine={selectedMarsMachine}
-          onClose={() => handleSelectMarsMachine(null)}
+          onClose={() => setSelectedMarsMachine(null)}
         />
       )}
 
-      {/* Bottom Hint (Only in Solar System Mode) */}
-      {viewMode === 'solar' && (
+      {/* Bottom Hint (Only in Solar System Overview Mode) */}
+      {activeMuseum === null && !selectedBody && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none text-center px-4">
           <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-light font-sans">
             Drag to explore · Select a planet · Discover Moon & Mars museum gateways
@@ -500,10 +478,10 @@ export default function Experience() {
         </div>
       )}
 
-      {/* Main 3D Canvas */}
+      {/* Main 3D Canvas - Unified Continuous Solar System Experience */}
       <Canvas
         camera={{
-          position: viewMode === 'solar' ? [0, 22, 36] : [0, 0, 5.5],
+          position: [0, 22, 36],
           fov: 45,
           near: 0.1,
           far: 200,
@@ -515,115 +493,57 @@ export default function Experience() {
           toneMappingExposure: 1.15,
         }}
         onPointerMissed={() => {
-          if (viewMode === 'solar') setSelectedBody(null);
-          else if (viewMode === 'moon') handleSelectMachine(null);
-          else handleSelectMarsMachine(null);
+          if (activeMuseum === 'moon') setSelectedMachine(null);
+          else if (activeMuseum === 'mars') setSelectedMarsMachine(null);
+          else setSelectedBody(null);
         }}
       >
-        {/* Render Solar System Mode */}
-        {viewMode === 'solar' && (
-          <Suspense fallback={null}>
-            <SolarSystem
-              selectedBody={selectedBody}
-              onSelectBody={setSelectedBody}
-              onEnterMoonMuseum={handleEnterMoonMuseum}
-              onEnterMarsMuseum={handleEnterMarsMuseum}
-              isPlaying={isPlaying}
-              planetPositionsRef={planetPositionsRef}
-            />
-          </Suspense>
-        )}
-
-        {/* Render Moon Museum Mode */}
-        {viewMode === 'moon' && (
-          <>
-            <ambientLight intensity={0.06} />
-            <directionalLight position={[7, 3, 5]} intensity={2.4} color="#fff8f0" />
-            <directionalLight position={[-6, -2, -4]} intensity={0.16} color="#8ab8e6" />
-
-            <Suspense fallback={null}>
-              <Moon
-                groupRef={moonGroupRef}
-                machines={LUNAR_MACHINES}
-                selectedMachine={selectedMachine}
-                hoveredId={hoveredId}
-                onSelectMachine={handleSelectMachine}
-                onHoverMachine={setHoveredId}
-                autoRotate={autoRotateMoon}
-              />
-            </Suspense>
-
-            <DynamicCallouts
-              machines={LUNAR_MACHINES}
-              moonGroupRef={moonGroupRef}
-              hoveredId={hoveredId}
-              onHover={setHoveredId}
-              selectedMachine={selectedMachine}
-              onSelect={handleSelectMachine}
-            />
-          </>
-        )}
-
-        {/* Render Mars Museum Mode */}
-        {viewMode === 'mars' && (
-          <>
-            <ambientLight intensity={0.06} />
-            <directionalLight position={[7, 3, 5]} intensity={2.4} color="#fff8f0" />
-            <directionalLight position={[-6, -2, -4]} intensity={0.16} color="#e07a5f" />
-
-            <Suspense fallback={null}>
-              <Mars
-                groupRef={marsGroupRef}
-                machines={MARS_MACHINES}
-                selectedMachine={selectedMarsMachine}
-                hoveredId={hoveredMarsId}
-                onSelectMachine={handleSelectMarsMachine}
-                onHoverMachine={setHoveredMarsId}
-                autoRotate={autoRotateMars}
-              />
-            </Suspense>
-
-            <MarsCallouts
-              machines={MARS_MACHINES}
-              marsGroupRef={marsGroupRef}
-              hoveredId={hoveredMarsId}
-              onHover={setHoveredMarsId}
-              selectedMachine={selectedMarsMachine}
-              onSelect={handleSelectMarsMachine}
-            />
-          </>
-        )}
+        <Suspense fallback={null}>
+          <SolarSystem
+            selectedBody={selectedBody}
+            onSelectBody={handleSelectBody}
+            activeMuseum={activeMuseum}
+            onEnterMoonMuseum={handleEnterMoonMuseum}
+            onEnterMarsMuseum={handleEnterMarsMuseum}
+            isPlaying={isPlaying}
+            planetPositionsRef={planetPositionsRef}
+            selectedMachine={selectedMachine}
+            hoveredId={hoveredId}
+            onSelectMachine={setSelectedMachine}
+            onHoverMachine={setHoveredId}
+            selectedMarsMachine={selectedMarsMachine}
+            hoveredMarsId={hoveredMarsId}
+            onSelectMarsMachine={setSelectedMarsMachine}
+            onHoverMarsMachine={setHoveredMarsId}
+          />
+        </Suspense>
 
         <CameraController
-          viewMode={viewMode}
+          activeMuseum={activeMuseum}
+          selectedBody={selectedBody}
           selectedMachine={selectedMachine}
           selectedMarsMachine={selectedMarsMachine}
-          selectedBody={selectedBody}
-          moonGroupRef={moonGroupRef}
-          marsGroupRef={marsGroupRef}
           controlsRef={controlsRef}
           planetPositionsRef={planetPositionsRef}
         />
 
         <OrbitControls
           ref={controlsRef}
-          enablePan={viewMode === 'solar' && !selectedBody}
-          minDistance={viewMode === 'solar' ? (selectedBody ? selectedBody.planetRadius * 1.3 : 3) : MOON_RADIUS + 0.35}
-          maxDistance={viewMode === 'solar' ? 70 : MOON_RADIUS + 8}
+          enablePan={!selectedBody && !activeMuseum}
+          minDistance={activeMuseum === 'moon' ? 0.35 : activeMuseum === 'mars' ? 0.6 : selectedBody ? selectedBody.planetRadius * 1.3 : 3}
+          maxDistance={70}
           rotateSpeed={0.5}
           zoomSpeed={0.7}
           enableDamping
           dampingFactor={0.08}
           onStart={() => {
             cursorStore.set('grabbing');
-            if (viewMode === 'moon') setAutoRotateMoon(false);
-            if (viewMode === 'mars') setAutoRotateMars(false);
           }}
           onEnd={() => {
             cursorStore.set('default');
           }}
         />
-        <FrameReadyReporter viewMode={viewMode} onReady={() => setModeReady(true)} />
+        <FrameReadyReporter onReady={() => setModeReady(true)} />
       </Canvas>
     </div>
   );

@@ -8,7 +8,7 @@ interface PlanetOrbitProps {
   highlighted?: boolean;
 }
 
-export default function PlanetOrbit({ radius, highlighted = false }: PlanetOrbitProps) {
+export default function PlanetOrbit({ radius }: PlanetOrbitProps) {
   const lineObject = useMemo(() => {
     const segments = 128;
     const points: THREE.Vector3[] = [];
@@ -18,12 +18,12 @@ export default function PlanetOrbit({ radius, highlighted = false }: PlanetOrbit
     }
     const geom = new THREE.BufferGeometry().setFromPoints(points);
     const mat = new THREE.LineBasicMaterial({
-      color: highlighted ? 0x7dd3fc : 0xffffff,
+      color: 0xffffff,
       transparent: true,
-      opacity: highlighted ? 0.45 : 0.12,
+      opacity: 0.10,
     });
     return new THREE.Line(geom, mat);
-  }, [radius, highlighted]);
+  }, [radius]);
 
   return <primitive object={lineObject} />;
 }

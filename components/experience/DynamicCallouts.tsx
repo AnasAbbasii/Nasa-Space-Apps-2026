@@ -5,20 +5,20 @@ import * as THREE from 'three';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import { Line2, LineMaterial, LineGeometry } from 'three-stdlib';
-import { latLonToVector3, MOON_RADIUS } from '@/lib/moon-coords';
+import { latLonToVector3, MOON_RADIUS, formatCalloutCoordinates } from '@/lib/moon-coords';
 import type { LunarMachine } from '@/lib/lunar-machines';
 import { cursorStore } from '@/lib/cursor-store';
 
 interface DynamicCalloutsProps {
   machines: LunarMachine[];
-  moonGroupRef: React.RefObject<THREE.Group | null>;
+  moonGroupRef?: React.RefObject<THREE.Group | null>;
   hoveredId: string | null;
   onHover: (id: string | null) => void;
   selectedMachine: LunarMachine | null;
   onSelect: (machine: LunarMachine | null) => void;
+  radius?: number;
+  distanceFactor?: number;
 }
-
-const MIN_LABEL_SPACING = 0.44; // Vertical scene units between labels to prevent text overlap
 
 function getMachineDisplayName(m: LunarMachine): string {
   switch (m.id) {
@@ -46,11 +46,27 @@ interface CalloutEntry {
   line: Line2;
   geometry: LineGeometry;
   material: LineMaterial;
-  positions: Float32Array; // 2 points (6 floats) for a perfectly straight line
+  positions: Float32Array; // 2 points (6 floats) for a straight connection line
+  currentX: number;
   currentY: number;
+  currentOpacity: number;
   currentSide: number;
   groupRef: React.RefObject<THREE.Group | null>;
   htmlDivRef: React.RefObject<HTMLDivElement | null>;
+}
+
+interface LayoutCandidate {
+  entry: CalloutEntry;
+  worldPos: THREE.Vector3;
+  normal: THREE.Vector3;
+  dot: number;
+  isNearSide: boolean;
+  limbAlpha: number;
+  side: number;
+  rawY: number;
+  targetY: number;
+  priority: number;
+  isStateB_suppressed: boolean;
 }
 
 export default function DynamicCallouts({
@@ -60,10 +76,14 @@ export default function DynamicCallouts({
   onHover,
   selectedMachine,
   onSelect,
+  radius = MOON_RADIUS,
+  distanceFactor = 5.5,
 }: DynamicCalloutsProps) {
-  const { size, viewport } = useThree();
+  const { size } = useThree();
 
   const entriesRef = useRef<Map<string, CalloutEntry>>(new Map());
+  const localRootRef = useRef<THREE.Group>(null);
+  const hysteresisMapRef = useRef<Map<string, boolean>>(new Map());
 
   // Initialize Line2 instances with thin delicate white lines
   const entries = useMemo(() => {
@@ -77,7 +97,7 @@ export default function DynamicCallouts({
         color: 0xffffff, // Pure white
         linewidth: 1.0, // Thin, delicate, uniform line thickness
         transparent: true,
-        opacity: 0.85,
+        opacity: 0,
         resolution: new THREE.Vector2(size.width, size.height),
         depthWrite: false,
       });
@@ -85,8 +105,9 @@ export default function DynamicCallouts({
       const line = new Line2(geom, mat);
       line.visible = false;
 
-      const initialY = (m.lat / 90) * 1.3;
+      const initialY = (m.lat / 90) * (radius * 0.65);
       const initialSide = m.lon >= 0 ? 1 : -1;
+      const initialX = initialSide * radius * 1.35;
 
       map.set(m.id, {
         machine: m,
@@ -94,7 +115,9 @@ export default function DynamicCallouts({
         geometry: geom,
         material: mat,
         positions,
+        currentX: initialX,
         currentY: initialY,
+        currentOpacity: 0,
         currentSide: initialSide,
         groupRef: React.createRef<THREE.Group>(),
         htmlDivRef: React.createRef<HTMLDivElement>(),
@@ -102,7 +125,7 @@ export default function DynamicCallouts({
     }
     entriesRef.current = map;
     return map;
-  }, [machines, size.width, size.height]);
+  }, [machines, size.width, size.height, radius]);
 
   // Clean up WebGL resources on unmount
   useEffect(() => {
@@ -115,103 +138,166 @@ export default function DynamicCallouts({
   }, [entries]);
 
   useFrame((state) => {
-    if (!moonGroupRef.current) return;
-
-    const moonRot = moonGroupRef.current.rotation;
-    const camPos = state.camera.position;
-
-    // Short, visually balanced distance outside the Moon's 2.0 radius silhouette
-    const labelDistX = Math.max(2.30, Math.min(2.45, viewport.width * 0.40));
-
-    interface LayoutCandidate {
-      entry: CalloutEntry;
-      worldPos: THREE.Vector3;
-      normal: THREE.Vector3;
-      visibility: number;
-      side: number;
-      rawY: number;
-      targetY: number;
+    // Transform camera position into Moon's local coordinate frame
+    const camPos = state.camera.position.clone();
+    const container = moonGroupRef?.current ?? localRootRef.current;
+    if (container) {
+      container.worldToLocal(camPos);
     }
+
+    // Visually balanced distance outside the sphere silhouette (Priority 2)
+    const labelDistX = radius * 1.35;
+    const minSpacing = radius * 0.22;
+    const maxY = radius * 0.88;
+    const minY = -radius * 0.88;
 
     const candidates: LayoutCandidate[] = [];
 
-    // 1. Calculate geographic positions on Moon crust and camera visibility
+    // 1. Calculate geographic positions and horizon visibility with hysteresis (State A, B, C)
     for (const m of machines) {
       const entry = entries.get(m.id);
       if (!entry) continue;
 
-      const localPos = latLonToVector3(m.lat, m.lon, MOON_RADIUS);
-      const worldPos = localPos.applyEuler(moonRot);
+      const localPos = latLonToVector3(m.lat, m.lon, radius);
+      const worldPos = localPos.clone();
       const normal = worldPos.clone().normalize();
 
       // Dot product with camera vector: > 0 means near side, < 0 means far side
       const toCam = camPos.clone().sub(worldPos).normalize();
       const dot = normal.dot(toCam);
 
-      // Fade out smoothly before crossing the horizon (-0.02 to 0.16)
-      const visibility = THREE.MathUtils.clamp((dot + 0.02) / 0.18, 0, 1);
+      // Limb hysteresis: > 0.05 to appear, < -0.01 to disappear (Anti-flicker threshold)
+      const wasNearSide = hysteresisMapRef.current.get(m.id) ?? false;
+      const isNearSide = wasNearSide ? dot > -0.01 : dot > 0.05;
+      hysteresisMapRef.current.set(m.id, isNearSide);
 
-      // Distribute to left or right based on world X
-      const side = worldPos.x >= 0 ? 1 : -1;
-      const rawY = THREE.MathUtils.clamp(worldPos.y * 1.25, -1.35, 1.35);
+      // Smooth limb fade
+      const limbAlpha = THREE.MathUtils.clamp((dot + 0.01) / 0.15, 0, 1);
+
+      // Side hysteresis around the central meridian to prevent jumping
+      const prevSide = entry.currentSide;
+      let side = prevSide;
+      if (prevSide === 1 && worldPos.x < -radius * 0.15) {
+        side = -1;
+      } else if (prevSide === -1 && worldPos.x > radius * 0.15) {
+        side = 1;
+      } else if (prevSide === 0) {
+        side = worldPos.x >= 0 ? 1 : -1;
+      }
+
+      const rawY = THREE.MathUtils.clamp(worldPos.y * 1.25, -radius * 0.75, radius * 0.75);
+
+      // Priority ranking: Selected (highest) > Hovered > Default
+      const isSelected = m.id === selectedMachine?.id;
+      const isHovered = m.id === hoveredId;
+      const priority = (isSelected ? 200 : 0) + (isHovered ? 100 : 0);
 
       candidates.push({
         entry,
         worldPos,
         normal,
-        visibility,
+        dot,
+        isNearSide,
+        limbAlpha,
         side,
         rawY,
         targetY: rawY,
+        priority,
+        isStateB_suppressed: false,
       });
     }
 
-    // 2. Separate into left and right groups for spacing relaxation
-    const leftGroup = candidates.filter((c) => c.side === -1 && c.visibility > 0.05);
-    const rightGroup = candidates.filter((c) => c.side === 1 && c.visibility > 0.05);
+    // 2. Multi-pass relaxation and State B collision resolution per side
+    const resolveSide = (groupSide: number) => {
+      const group = candidates.filter((c) => c.isNearSide && c.side === groupSide);
+      if (group.length === 0) return;
 
-    // Sort descending by raw Y (top to bottom)
-    leftGroup.sort((a, b) => b.rawY - a.rawY);
-    rightGroup.sort((a, b) => b.rawY - a.rawY);
+      // Preserving descending rawY monotonic order strictly prevents connection lines from intersecting
+      group.sort((a, b) => b.rawY - a.rawY);
 
-    // Multi-pass relaxation to prevent ANY label overlap
-    const relax = (group: LayoutCandidate[]) => {
-      for (let pass = 0; pass < 5; pass++) {
-        for (let i = 0; i < group.length - 1; i++) {
-          const top = group[i];
-          const bot = group[i + 1];
+      // Maximum labels that can comfortably fit in available vertical span
+      const maxCapacity = Math.max(1, Math.floor((maxY - minY) / minSpacing) + 1);
+
+      // State B: If crowded beyond vertical bounds, suppress lowest-priority labels
+      if (group.length > maxCapacity) {
+        const toSuppress = group.length - maxCapacity;
+        const sortedByPriority = [...group].sort((a, b) => a.priority - b.priority);
+        for (let k = 0; k < toSuppress; k++) {
+          sortedByPriority[k].isStateB_suppressed = true;
+        }
+      }
+
+      const active = group.filter((c) => !c.isStateB_suppressed);
+      if (active.length <= 1) return;
+
+      // Iterative push-apart relaxation
+      for (let pass = 0; pass < 8; pass++) {
+        for (let i = 0; i < active.length - 1; i++) {
+          const top = active[i];
+          const bot = active[i + 1];
           const diff = top.targetY - bot.targetY;
-          if (diff < MIN_LABEL_SPACING) {
-            const shift = (MIN_LABEL_SPACING - diff) / 2;
-            top.targetY += shift;
-            bot.targetY -= shift;
+          if (diff < minSpacing) {
+            const overlap = minSpacing - diff;
+            if (top.priority > bot.priority) {
+              bot.targetY -= overlap;
+            } else if (bot.priority > top.priority) {
+              top.targetY += overlap;
+            } else {
+              top.targetY += overlap * 0.5;
+              bot.targetY -= overlap * 0.5;
+            }
           }
+        }
+
+        // Clamp to vertical boundary envelope
+        if (active[0].targetY > maxY) {
+          const excess = active[0].targetY - maxY;
+          for (const item of active) item.targetY -= excess;
+        }
+        const last = active[active.length - 1];
+        if (last.targetY < minY) {
+          const excess = minY - last.targetY;
+          for (const item of active) item.targetY += excess;
+        }
+      }
+
+      // Safety check: if boundary crowding causes remaining overlap, suppress lowest priority
+      for (let i = 0; i < active.length - 1; i++) {
+        if (active[i].targetY - active[i + 1].targetY < minSpacing * 0.75) {
+          const victim = active[i].priority <= active[i + 1].priority ? active[i] : active[i + 1];
+          victim.isStateB_suppressed = true;
         }
       }
     };
 
-    relax(leftGroup);
-    relax(rightGroup);
+    resolveSide(-1); // Left group
+    resolveSide(1);  // Right group
 
-    // 3. Update straight lines and label transforms
+    // 3. Update connection lines, damping, and label transforms
     for (const cand of candidates) {
-      const { entry, worldPos, visibility, side, targetY } = cand;
+      const { entry, worldPos, isNearSide, limbAlpha, isStateB_suppressed, side, targetY } = cand;
       const m = entry.machine;
       const isActive = m.id === hoveredId || m.id === selectedMachine?.id;
 
-      // Smooth inertia damping on label Y prevents sudden jumps
+      // Target opacity: State A -> visible; State B (suppressed) -> 0; State C (far-side) -> 0
+      let targetOpacity = 0;
+      if (isNearSide && !isStateB_suppressed) {
+        targetOpacity = (isActive ? 1.0 : 0.88) * limbAlpha;
+      }
+
+      // Smooth inertia damping on Y, X, and opacity
       entry.currentY = THREE.MathUtils.lerp(entry.currentY, targetY, 0.12);
       entry.currentSide = side;
-
       const targetX = side * labelDistX;
+      entry.currentX = THREE.MathUtils.lerp(entry.currentX, targetX, 0.14);
+      entry.currentOpacity = THREE.MathUtils.lerp(entry.currentOpacity, targetOpacity, 0.14);
 
-      // P0: Starts precisely at verified geographic coordinate on lunar surface
+      // P0: verified geographic coordinate on lunar surface (never moved)
       const P0 = worldPos;
-      // Pend: Terminates precisely at the external name label outside the silhouette
-      // Z is elevated slightly (+0.15) into foreground space, guaranteeing distance from center increases monotonically
-      const Pend = new THREE.Vector3(targetX, entry.currentY, worldPos.z + 0.15);
+      // Pend: external label anchor point outside silhouette
+      const Pend = new THREE.Vector3(entry.currentX, entry.currentY, worldPos.z + radius * 0.08);
 
-      // Set perfectly straight 2-point line: P0 -> Pend
+      // Set straight 2-point line: P0 -> Pend
       entry.positions[0] = P0.x;
       entry.positions[1] = P0.y;
       entry.positions[2] = P0.z;
@@ -220,12 +306,12 @@ export default function DynamicCallouts({
       entry.positions[5] = Pend.z;
       entry.geometry.setPositions(entry.positions);
 
-      // Line styling: delicate, thin, uniform white
+      // Line styling: delicate, thin, uniform white (~1-1.25 px)
       entry.material.resolution.set(size.width, size.height);
-      entry.material.linewidth = isActive ? 1.5 : 1.0;
+      entry.material.linewidth = isActive ? 1.25 : 1.0;
       entry.material.color.set(0xffffff);
-      entry.material.opacity = (isActive ? 1.0 : 0.85) * visibility;
-      entry.line.visible = visibility > 0.02;
+      entry.material.opacity = entry.currentOpacity;
+      entry.line.visible = entry.currentOpacity > 0.02;
 
       // Position 3D label group at line termination point Pend
       if (entry.groupRef.current) {
@@ -234,14 +320,14 @@ export default function DynamicCallouts({
 
       // Update HTML label visibility and interactivity
       if (entry.htmlDivRef.current) {
-        entry.htmlDivRef.current.style.opacity = String(visibility);
-        entry.htmlDivRef.current.style.pointerEvents = visibility > 0.25 ? 'auto' : 'none';
+        entry.htmlDivRef.current.style.opacity = String(entry.currentOpacity);
+        entry.htmlDivRef.current.style.pointerEvents = entry.currentOpacity > 0.35 ? 'auto' : 'none';
       }
     }
   });
 
   return (
-    <group>
+    <group ref={localRootRef}>
       {/* Thin, Delicate, Straight White Connection Lines */}
       {Array.from(entries.values()).map((entry) => (
         <primitive key={`line-${entry.machine.id}`} object={entry.line} />
@@ -255,7 +341,7 @@ export default function DynamicCallouts({
 
         return (
           <group key={`label-group-${m.id}`} ref={entry.groupRef}>
-            <Html center={false} distanceFactor={5.5}>
+            <Html center={false} distanceFactor={distanceFactor}>
               <div
                 ref={entry.htmlDivRef}
                 data-cursor="focus"
@@ -271,9 +357,12 @@ export default function DynamicCallouts({
                   e.stopPropagation();
                   onSelect(m);
                 }}
-                className="select-none cursor-pointer transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] will-change-transform"
+                onPointerDown={(e) => e.stopPropagation()}
+                className="select-none cursor-pointer flex flex-col transition-opacity duration-200"
                 style={{
-                  transform: isLeft ? 'translate(calc(-100% - 5px), -50%)' : 'translate(5px, -50%)',
+                  transform: isLeft ? 'translate(calc(-100% - 6px), -50%)' : 'translate(6px, -50%)',
+                  alignItems: isLeft ? 'flex-end' : 'flex-start',
+                  textAlign: isLeft ? 'right' : 'left',
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
@@ -281,22 +370,39 @@ export default function DynamicCallouts({
                   whiteSpace: 'nowrap',
                 }}
               >
-                {/* Machine Name in Pure White (#FFFFFF) and Space Grotesk */}
+                {/* Machine Name in Pure White (#FFFFFF), Space Grotesk, Regular (400) */}
                 <span
                   style={{
                     color: '#FFFFFF',
                     fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
-                    fontSize: '13px',
-                    fontWeight: isActive ? 600 : 500,
-                    letterSpacing: '0.06em',
-                    textShadow: isActive
-                      ? '0 0 12px rgba(255, 255, 255, 0.85), 0 1px 4px rgba(0, 0, 0, 0.95)'
-                      : '0 1px 4px rgba(0, 0, 0, 0.95), 0 2px 8px rgba(0, 0, 0, 0.85)',
-                    transition: 'text-shadow 0.2s ease, font-weight 0.2s ease',
+                    fontSize: '13.5px',
+                    fontWeight: 400,
+                    letterSpacing: '0.04em',
+                    lineHeight: 1.2,
+                    opacity: isActive ? 1.0 : 0.92,
+                    transition: 'opacity 0.2s ease',
                     userSelect: 'none',
                   }}
                 >
                   {getMachineDisplayName(m)}
+                </span>
+
+                {/* Coordinates in Muted White (#B8B8B8, ~75% opacity), 10.5px, Regular (400) */}
+                <span
+                  style={{
+                    color: '#B8B8B8',
+                    fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+                    fontSize: '10.5px',
+                    fontWeight: 400,
+                    letterSpacing: '0.05em',
+                    lineHeight: 1.2,
+                    marginTop: '3.5px',
+                    opacity: isActive ? 0.95 : 0.75,
+                    transition: 'opacity 0.2s ease',
+                    userSelect: 'none',
+                  }}
+                >
+                  {formatCalloutCoordinates(m.lat, m.lon)}
                 </span>
               </div>
             </Html>

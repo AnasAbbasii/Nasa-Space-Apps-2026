@@ -35,3 +35,11 @@ export function formatMarsCoordinates(lat: number, lon: number): string {
   const lonDir = normLon >= 0 ? 'E' : 'W';
   return `${Math.abs(lat).toFixed(4)}° ${latDir}, ${Math.abs(normLon).toFixed(4)}° ${lonDir} (${lon.toFixed(2)}° E)`;
 }
+
+/** Concise coordinate format for map callouts (e.g. 22.3°N, 47.9°E) */
+export function formatMarsCalloutCoordinates(lat: number, lon: number): string {
+  const latDir = lat >= 0 ? 'N' : 'S';
+  const normLon = lon > 180 ? lon - 360 : lon;
+  const lonDir = normLon >= 0 ? 'E' : 'W';
+  return `${Math.abs(lat).toFixed(1)}°${latDir}, ${Math.abs(normLon).toFixed(1)}°${lonDir}`;
+}
