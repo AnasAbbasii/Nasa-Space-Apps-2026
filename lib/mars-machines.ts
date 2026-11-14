@@ -1,0 +1,156 @@
+// Verified coordinates and historical records for Mars landers and rovers.
+// Source: Landed NASA hardware on Mars dataset, NASA NSSDCA, and Mars Reconnaissance Orbiter (HiRISE) records.
+
+export interface MarsMachine {
+  id: string;
+  name: string;
+  missionName: string;
+  agency: string;
+  country: string;
+  lat: number;        // degrees, positive = north
+  lon: number;        // degrees, east-positive (0 to 360)
+  landingDate: string;
+  siteName: string;
+  purpose: string;
+  leftBehind: string;
+  significance: string;
+  currentStatus: string;
+}
+
+export const MARS_MACHINES: MarsMachine[] = [
+  {
+    id: 'viking-1',
+    name: 'Viking 1 Lander',
+    missionName: 'Viking 1',
+    agency: 'NASA',
+    country: 'United States',
+    lat: 22.27,
+    lon: 312.05,
+    landingDate: 'July 20, 1976',
+    siteName: 'Chryse Planitia',
+    purpose: 'Search for biosignatures, characterize the Martian atmosphere, measure meteorology, and obtain the first high-resolution panoramic surface photography.',
+    leftBehind: 'The three-legged lander platform and science boom remain at Chryse Planitia. Operations ceased November 11, 1982 after an erroneous uplink command severed communications.',
+    significance: 'First spacecraft to successfully land on Mars and complete its mission. Operated for over 6 years (2,245 sols), proving Mars possesses a complex, active atmospheric cycle.',
+    currentStatus: 'Silent at Chryse Planitia since 1982; imaged by the High Resolution Imaging Science Experiment (HiRISE) aboard MRO.',
+  },
+  {
+    id: 'viking-2',
+    name: 'Viking 2 Lander',
+    missionName: 'Viking 2',
+    agency: 'NASA',
+    country: 'United States',
+    lat: 47.64,
+    lon: 134.26,
+    landingDate: 'September 3, 1976',
+    siteName: 'Utopia Planitia',
+    purpose: 'Examine high-latitude northern permafrost regions, perform soil biology experiments, and monitor seismology in Utopia Planitia.',
+    leftBehind: 'Lander platform remains where it touched down. Contact ended on April 11, 1980 when battery failure disabled transmissions.',
+    significance: 'Operated for 1,281 sols; provided crucial data on seasonal water vapor frost, soil chemistry, and thousands of detailed surface panoramas.',
+    currentStatus: 'Intact at Utopia Planitia; confirmed by orbital imagery.',
+  },
+  {
+    id: 'pathfinder-sojourner',
+    name: 'Pathfinder & Sojourner',
+    missionName: 'Mars Pathfinder',
+    agency: 'NASA',
+    country: 'United States',
+    lat: 19.13,
+    lon: 326.78,
+    landingDate: 'July 4, 1997',
+    siteName: 'Ares Vallis (Carl Sagan Memorial Station)',
+    purpose: 'Demonstrated revolutionary low-cost airbag touchdown technology and deployed Sojourner, the first wheeled rover on another planet.',
+    leftBehind: 'The Carl Sagan Memorial Station base and the microwave-sized Sojourner rover remain near Yogi Rock. Final communication was received September 27, 1997.',
+    significance: 'Captured 16,500 images and performed 15 chemical analyses of rocks and soil, confirming Ares Vallis was shaped by ancient catastrophic mega-floods.',
+    currentStatus: 'Resting in the Ares Vallis ancient flood channel; imaged from orbit by HiRISE.',
+  },
+  {
+    id: 'spirit-mer-a',
+    name: 'Spirit (MER-A)',
+    missionName: 'Mars Exploration Rover A',
+    agency: 'NASA',
+    country: 'United States',
+    lat: -14.57,
+    lon: 175.47,
+    landingDate: 'January 4, 2004',
+    siteName: 'Gusev Crater (Columbia Memorial Station)',
+    purpose: 'Investigate whether Gusev Crater once held an ancient lake and characterize geological mineralogy with rock abrasion tools.',
+    leftBehind: 'Became trapped in soft sand at "Troy" in May 2009. Survived as a stationary science platform until freezing winter temperatures depleted battery power on March 22, 2010.',
+    significance: 'Operated for over 6 years (20 times its 90-day design); discovered nearly pure silica deposits, proving ancient hydrothermal volcanic vents once bubbled with hot water.',
+    currentStatus: 'Parked permanently at the western edge of Home Plate in Gusev Crater.',
+  },
+  {
+    id: 'opportunity-mer-b',
+    name: 'Opportunity (MER-B)',
+    missionName: 'Mars Exploration Rover B',
+    agency: 'NASA',
+    country: 'United States',
+    lat: -1.95,
+    lon: 354.47,
+    landingDate: 'January 25, 2004',
+    siteName: 'Meridiani Planum (Challenger Memorial Station)',
+    purpose: 'Search for hematite, layered sedimentary rocks, and direct physical evidence of past standing liquid water.',
+    leftBehind: 'Traveled 45.16 kilometers across the Martian surface over nearly 15 years. Succumbed to an all-encompassing global dust storm in June 2018; mission declared complete February 13, 2019.',
+    significance: 'Discovered hematite spherules ("blueberries") and gypsum veins, proving that ancient Mars had sustained, neutral pH water that could have supported life.',
+    currentStatus: 'Resting quietly in Perseverance Valley on the western rim of Endeavour Crater.',
+  },
+  {
+    id: 'phoenix',
+    name: 'Phoenix Lander',
+    missionName: 'Mars Phoenix',
+    agency: 'NASA',
+    country: 'United States',
+    lat: 68.22,
+    lon: 234.25,
+    landingDate: 'May 25, 2008',
+    siteName: 'Vastitas Borealis (Green Valley)',
+    purpose: 'Scrape into the arctic permafrost to analyze subsurface water ice and study habitability in the polar plains.',
+    leftBehind: 'Solar panels were coated in thick carbon dioxide dry ice during the dark Martian polar winter; mission concluded November 2, 2008.',
+    significance: 'First spacecraft to touch and analyze Martian water ice directly; detected perchlorates and confirmed soil chemistry suitable for plant growth nutrients.',
+    currentStatus: 'Permanent monument in the northern polar region; solar arrays damaged by winter ice pack as verified by HiRISE.',
+  },
+  {
+    id: 'curiosity',
+    name: 'Curiosity (MSL)',
+    missionName: 'Mars Science Laboratory',
+    agency: 'NASA',
+    country: 'United States',
+    lat: -4.59,
+    lon: 137.44,
+    landingDate: 'August 6, 2012',
+    siteName: 'Gale Crater (Bradbury Landing)',
+    purpose: 'Assess past environmental habitability by drilling into sedimentary rock strata in Gale Crater and ascending Mount Sharp.',
+    leftBehind: 'Active mobile laboratory traversing Mount Sharp; sky-crane descent stage impacted safely 650 meters north of the landing site.',
+    significance: 'Discovered ancient freshwater lake beds containing sulfur, nitrogen, oxygen, phosphorus, and organic carbon compounds—the essential chemistry for life.',
+    currentStatus: 'Active exploration vehicle climbing Mount Sharp; its landing equipment forms permanent historical markers in Gale Crater.',
+  },
+  {
+    id: 'insight',
+    name: 'InSight Lander',
+    missionName: 'InSight',
+    agency: 'NASA',
+    country: 'United States',
+    lat: 4.5,
+    lon: 135.62,
+    landingDate: 'November 26, 2018',
+    siteName: 'Elysium Planitia',
+    purpose: 'Map the deep interior structure of Mars—crust, mantle, and metallic core—using an ultra-sensitive seismometer and heat-flow probe.',
+    leftBehind: 'Stationary lander and surface-deployed SEIS instrument dome. Heavy dust accumulation on solar panels depleted power; final transmission received December 15, 2022.',
+    significance: 'Detected over 1,300 marsquakes, confirmed Mars has a liquid metallic iron core, and recorded seismic waves from fresh meteorite impacts.',
+    currentStatus: 'Silent on the smooth volcanic plains of Elysium Planitia beneath a mantle of Martian dust.',
+  },
+  {
+    id: 'perseverance-ingenuity',
+    name: 'Perseverance & Ingenuity',
+    missionName: 'Mars 2020',
+    agency: 'NASA',
+    country: 'United States',
+    lat: 18.44,
+    lon: 77.45,
+    landingDate: 'February 18, 2021',
+    siteName: 'Jezero Crater (Octavia E. Butler Landing)',
+    purpose: 'Astrobiological search for fossil biosignatures in an ancient river delta, sample caching, and planetary flight demonstration.',
+    leftBehind: 'Ingenuity executed 72 successful flights covering 17 km before sustaining rotor tip damage in January 2024, becoming the first permanent aviation artifact on another world (Valinor Hills).',
+    significance: 'Ingenuity achieved the Wright brothers moment of space exploration. Perseverance is caching core samples for future retrieval missions.',
+    currentStatus: 'Perseverance roving Jezero Crater; Ingenuity preserved as a historic aviation monument at Valinor Hills.',
+  },
+];

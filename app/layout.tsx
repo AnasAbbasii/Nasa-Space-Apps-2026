@@ -16,6 +16,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="h-full antialiased dark">
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="min-h-full flex flex-col bg-black text-white selection:bg-white/20 selection:text-white overflow-x-hidden font-sans">
         {/* Persistent Full-Screen Space Background across all pages */}
         <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none select-none">
