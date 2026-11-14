@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { latLonToVector3, MOON_RADIUS } from '@/lib/moon-coords';
 import type { LunarMachine } from '@/lib/lunar-machines';
+import { cursorStore } from '@/lib/cursor-store';
 
 interface LunarMachineObjectProps {
   machine: LunarMachine;
@@ -42,10 +43,12 @@ export default function LunarMachineObject({
       onPointerOver={(e) => {
         e.stopPropagation();
         document.body.style.cursor = 'pointer';
+        cursorStore.set('focus');
         onHover(machine.id);
       }}
       onPointerOut={() => {
         document.body.style.cursor = 'default';
+        cursorStore.set('default');
         onHover(null);
       }}
     >

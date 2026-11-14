@@ -9,70 +9,73 @@ interface MarsInfoPanelProps {
   onClose: () => void;
 }
 
+/**
+ * Truly Transparent Liquid Glass Martian Dossier.
+ * Pure minimal white typography, zero solid backgrounds, zero colored containers.
+ */
 export default function MarsInfoPanel({ machine, onClose }: MarsInfoPanelProps) {
   return (
     <aside
       aria-label="Martian Machine Information"
-      className="absolute right-5 top-5 bottom-16 w-84 max-w-[calc(100vw-2.5rem)] overflow-y-auto rounded-xl z-20 pointer-events-auto transition-all animate-fade-in"
+      className="absolute right-5 top-5 bottom-16 w-80 max-w-[calc(100vw-2.5rem)] overflow-y-auto no-scrollbar rounded-2xl z-20 pointer-events-auto transition-all animate-fade-in"
       style={{
-        background: 'rgba(16, 9, 8, 0.90)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(255, 138, 87, 0.25)',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.75)',
+        background: 'rgba(0, 0, 0, 0.32)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
       }}
     >
       {/* Header */}
       <div
-        className="sticky top-0 z-10 flex items-start justify-between gap-3 px-5 pt-4 pb-3"
+        className="sticky top-0 z-10 flex items-start justify-between gap-3 px-6 pt-5 pb-3"
         style={{
-          background: 'rgba(16, 9, 8, 0.96)',
-          borderBottom: '1px solid rgba(255, 138, 87, 0.15)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
         <div>
-          <div className="text-[10px] uppercase tracking-[0.25em] text-orange-400 font-mono font-medium">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-mono">
             {machine.missionName}
           </div>
-          <h2 className="text-base font-medium text-white/95 leading-tight mt-0.5 tracking-wide font-sans">
+          <h2 className="text-base font-light text-white tracking-wider mt-0.5 font-sans">
             {machine.name}
           </h2>
-          <div className="text-[10px] text-white/45 font-mono mt-0.5">
+          <div className="text-[9px] text-white/40 font-mono mt-0.5">
             {machine.siteName}
           </div>
         </div>
         <button
           onClick={onClose}
           aria-label="Close panel"
-          className="mt-0.5 p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/90 transition-colors text-sm leading-none"
+          className="mt-0.5 p-1 text-white/40 hover:text-white transition-all duration-200 ease-out hover:scale-[1.12] active:scale-[0.92] text-sm leading-none bg-transparent border-0 outline-none cursor-pointer"
         >
           ✕
         </button>
       </div>
 
       {/* Body content */}
-      <div className="px-5 pb-6 pt-3 space-y-4 text-xs leading-relaxed text-white/70">
+      <div className="px-6 pb-6 pt-4 space-y-4 text-xs leading-relaxed text-white/70">
         {/* Geographic & Mission Meta Grid */}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 pt-1">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           <MetaItem label="Agency" value={machine.agency} />
           <MetaItem label="Country" value={machine.country} />
           <MetaItem label="Landed" value={machine.landingDate} />
           <MetaItem label="Coordinates" value={formatMarsCoordinates(machine.lat, machine.lon)} />
         </div>
 
-        <div className="border-t border-white/[0.08]" />
+        <div className="border-t border-white/[0.06]" />
 
         <Section label="Original Purpose" text={machine.purpose} />
         <Section label="Why Left Behind" text={machine.leftBehind} />
         <Section label="Historical Significance" text={machine.significance} />
         <Section label="Current Status" text={machine.currentStatus} />
 
-        <div className="pt-2">
+        <div className="pt-2 border-t border-white/[0.06]">
           <button
             onClick={onClose}
-            className="w-full py-2 px-3 text-[10px] uppercase tracking-[0.2em] text-orange-300/90 hover:text-orange-200 bg-orange-950/40 hover:bg-orange-900/50 border border-orange-500/30 rounded transition-colors text-center"
+            className="w-full text-left py-1 text-[9px] uppercase tracking-[0.2em] text-white/40 hover:text-white transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.97] origin-left will-change-transform flex items-center gap-1.5 group bg-transparent border-0 outline-none p-0 cursor-pointer"
           >
-            ← Return to Full Mars View
+            <span className="transition-transform duration-200 ease-out group-hover:-translate-x-0.5">←</span>
+            <span>Return to Full Mars View</span>
           </button>
         </div>
       </div>
@@ -94,10 +97,10 @@ function MetaItem({ label, value }: { label: string; value: string }) {
 function Section({ label, text }: { label: string; text: string }) {
   return (
     <div>
-      <div className="text-[9px] uppercase tracking-[0.2em] text-orange-400/80 font-mono mb-1">
+      <div className="text-[9px] uppercase tracking-[0.2em] text-white/45 font-mono mb-1">
         {label}
       </div>
-      <p className="text-white/75 text-[11px] leading-relaxed font-light">{text}</p>
+      <p className="text-white/70 text-[11px] leading-relaxed font-light">{text}</p>
     </div>
   );
 }

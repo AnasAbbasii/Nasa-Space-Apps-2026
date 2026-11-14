@@ -16,6 +16,7 @@ export interface CelestialBody {
   diameter: string;
   orbitalPeriod: string;
   rotationPeriod: string;
+  moons: string;
   summary: string;
 }
 
@@ -34,10 +35,31 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     texturePath: '/3dmodels/sun/textures/suncyl1.jpg',
     distanceFromSun: '0 km (Center)',
     diameter: '1,392,700 km',
-    orbitalPeriod: 'N/A (Galactic Orbit: ~230M yrs)',
+    orbitalPeriod: 'N/A (~230M yr Galactic Orbit)',
     rotationPeriod: '25 - 35 Earth days',
+    moons: 'None (8 Planets, 5+ Dwarf Planets)',
     summary:
-      'A yellow dwarf star (G2V) comprising 99.86% of the solar system\'s total mass. Its gravitational field anchors every orbiting planet, while its thermonuclear core provides radiant energy sustaining planetary systems.',
+      'A yellow dwarf star (G2V) comprising 99.86% of the solar system\'s total mass. Its gravitational field anchors every orbiting world, while its core sustains planetary life through radiant thermonuclear energy.',
+  },
+  {
+    id: 'mercury',
+    name: 'Mercury',
+    type: 'planet',
+    orbitRadius: 3.8,
+    planetRadius: 0.35,
+    orbitalSpeed: 0.48,
+    axialTilt: 0.034,
+    rotationSpeed: 0.003,
+    color: '#9e9e9e',
+    fbxPath: null,
+    texturePath: null,
+    distanceFromSun: '57.9 million km (0.39 AU)',
+    diameter: '4,879 km (0.38× Earth)',
+    orbitalPeriod: '88.0 Earth days',
+    rotationPeriod: '58.6 Earth days',
+    moons: '0',
+    summary:
+      'The innermost planet and smallest terrestrial world. Possessing virtually no atmosphere, its ancient cratered surface endures extreme thermal swings between -180 °C and 430 °C.',
   },
   {
     id: 'venus',
@@ -52,11 +74,12 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     fbxPath: '/3dmodels/venus/source/Venus.fbx',
     texturePath: '/3dmodels/venus/textures/8k_venus_surface.jpg',
     distanceFromSun: '108.2 million km (0.72 AU)',
-    diameter: '12,104 km',
+    diameter: '12,104 km (0.95× Earth)',
     orbitalPeriod: '224.7 Earth days',
     rotationPeriod: '243 Earth days (Retrograde)',
+    moons: '0',
     summary:
-      'Second planet from the Sun and Earth\'s closest planetary neighbor. Enveloped by an opaque blanket of sulfuric acid clouds with a crushing carbon dioxide atmosphere and surface temperatures reaching 465 °C.',
+      'Enveloped by an impenetrable blanket of sulfuric acid clouds, Venus suffers a runaway greenhouse effect generating a crushing 92-bar atmosphere and 465 °C surface temperatures.',
   },
   {
     id: 'earth',
@@ -72,10 +95,11 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     texturePath: '/3dmodels/earth/textures/1_earth_8k.jpg',
     distanceFromSun: '149.6 million km (1.00 AU)',
     diameter: '12,742 km',
-    orbitalPeriod: '365.25 days',
-    rotationPeriod: '23h 56m 4s',
+    orbitalPeriod: '365.25 days (1.00 Year)',
+    rotationPeriod: '23h 56m 4s (1 Day)',
+    moons: '1 (The Moon)',
     summary:
-      'The third planet from the Sun and the only known harbor of life in the universe. Accompanied by the Moon—humanity\'s first step beyond our world and the primary destination of our lunar exploration archives.',
+      'The vibrant blue world and only confirmed oasis of life. Accompanied by the Moon—humanity\'s first interplanetary stepping stone and the resting home of our earliest lunar machines.',
   },
   {
     id: 'mars',
@@ -91,10 +115,31 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     texturePath: '/textures/mars_surface.jpg',
     distanceFromSun: '227.9 million km (1.52 AU)',
     diameter: '6,779 km (0.53× Earth)',
-    orbitalPeriod: '687 Earth days (1.88 yrs)',
+    orbitalPeriod: '687 Earth days (1.88 Years)',
     rotationPeriod: '24h 37m 22s (1 Sol)',
+    moons: '2 (Phobos & Deimos)',
     summary:
-      'The Red Planet. A cold, desert world with a thin carbon dioxide atmosphere, ancient river valleys, towering shield volcanoes, and the legendary resting sites of humanity\'s robotic rovers and landers.',
+      'The Red Planet. A cold desert world featuring colossal shield volcanoes, deep rift valleys, and the historic landing sites of humanity\'s intrepid robotic explorers.',
+  },
+  {
+    id: 'jupiter',
+    name: 'Jupiter',
+    type: 'planet',
+    orbitRadius: 13.0,
+    planetRadius: 1.15,
+    orbitalSpeed: 0.16,
+    axialTilt: 3.13,
+    rotationSpeed: 0.03,
+    color: '#c99056',
+    fbxPath: null,
+    texturePath: null,
+    distanceFromSun: '778.5 million km (5.20 AU)',
+    diameter: '139,820 km (11.0× Earth)',
+    orbitalPeriod: '11.86 Earth years',
+    rotationPeriod: '9h 55m 30s',
+    moons: '95 verified (Io, Europa, Ganymede, Callisto)',
+    summary:
+      'The king of planets, exceeding 2.5 times the mass of all other planets combined. A majestic gas giant sculptured by vibrant ammonia cloud bands and centuries-old anticyclonic storms.',
   },
   {
     id: 'saturn',
@@ -112,9 +157,10 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     distanceFromSun: '1.43 billion km (9.58 AU)',
     diameter: '116,460 km (9.1× Earth)',
     orbitalPeriod: '29.4 Earth years',
-    rotationPeriod: '10h 33m',
+    rotationPeriod: '10h 33m 38s',
+    moons: '146 verified (Titan, Enceladus, Mimas)',
     summary:
-      'The ringed jewel of the outer solar system. A gas giant encircled by an iconic, expansive system of rings composed of billions of water-ice fragments, orbiting dust, and shepherd moons.',
+      'The crown jewel of the outer solar system, encircled by a dazzling ring system spanning 282,000 kilometers comprised of pure water-ice boulders, micro-crystals, and silicate dust.',
   },
   {
     id: 'uranus',
@@ -131,9 +177,10 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     distanceFromSun: '2.87 billion km (19.2 AU)',
     diameter: '50,724 km (4.0× Earth)',
     orbitalPeriod: '84.0 Earth years',
-    rotationPeriod: '17h 14m (Retrograde)',
+    rotationPeriod: '17h 14m 24s (Retrograde)',
+    moons: '28 verified (Titania, Oberon, Umbriel)',
     summary:
-      'An ice giant with an extreme 98° axial tilt, causing it to effectively roll along its orbital path. Its pale cyan color is produced by atmospheric methane absorbing red wavelengths of sunlight.',
+      'An enigmatic ice giant rolling sideways along its orbit with an extreme 98° axial tilt. Its cyan haze is crafted by atmospheric methane absorbing red photons from sunlight.',
   },
   {
     id: 'neptune',
@@ -150,8 +197,9 @@ export const CELESTIAL_BODIES: CelestialBody[] = [
     distanceFromSun: '4.50 billion km (30.1 AU)',
     diameter: '49,244 km (3.9× Earth)',
     orbitalPeriod: '164.8 Earth years',
-    rotationPeriod: '16h 6m',
+    rotationPeriod: '16h 6m 36s',
+    moons: '16 verified (Triton, Proteus, Nereid)',
     summary:
-      'The most distant major planet in the solar system. A dynamic ice giant exhibiting the fastest recorded planetary winds in the solar system, exceeding 2,100 km/h in its deep blue atmosphere.',
+      'The most distant major planet in the solar system. A supersonic ice giant driven by extreme atmospheric dynamics that produce storms and solar-system-record wind speeds exceeding 2,100 km/h.',
   },
 ];

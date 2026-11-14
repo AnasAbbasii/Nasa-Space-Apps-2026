@@ -2,8 +2,10 @@
 
 import { Suspense, useState, useRef, useCallback, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
+import { OrbitControls, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
+import ThreeDotLoader from '@/components/ThreeDotLoader';
+import { cursorStore } from '@/lib/cursor-store';
 
 // Moon Museum Components & Data
 import { LUNAR_MACHINES } from '@/lib/lunar-machines';
@@ -26,8 +28,52 @@ import { CELESTIAL_BODIES } from '@/lib/solar-system';
 import type { CelestialBody } from '@/lib/solar-system';
 import SolarSystem from './solar/SolarSystem';
 import PlanetInfoPanel from './solar/PlanetInfoPanel';
+import SolarSidebar from './solar/SolarSidebar';
 
 type ViewMode = 'solar' | 'moon' | 'mars';
+
+function MoonArchiveLogo() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-white/85"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="8.5" strokeOpacity="0.9" />
+      <path d="M12 3.5 A 8.5 8.5 0 0 0 12 20.5 A 6.5 8.5 0 0 1 12 3.5" strokeOpacity="0.45" />
+      <circle cx="10" cy="10" r="0.75" fill="currentColor" fillOpacity="0.6" stroke="none" />
+      <circle cx="14" cy="14" r="0.5" fill="currentColor" fillOpacity="0.5" stroke="none" />
+    </svg>
+  );
+}
+
+function MarsArchiveLogo() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.25"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="text-white/85"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="8.5" strokeOpacity="0.9" />
+      <ellipse cx="12" cy="12" rx="8.5" ry="3.2" strokeOpacity="0.45" transform="rotate(-25 12 12)" />
+      <circle cx="12" cy="12" r="1" fill="currentColor" fillOpacity="0.7" stroke="none" />
+    </svg>
+  );
+}
 
 interface CameraControllerProps {
   viewMode: ViewMode;
@@ -95,14 +141,27 @@ function CameraController({
     } else {
       // Solar System view mode
       if (selectedBody && planetPositionsRef.current) {
-        const planetPos = planetPositionsRef.current.get(selectedBody.id) ?? new THREE.Vector3();
-        const offsetDist = Math.max(2.5, selectedBody.planetRadius * 4.2);
-        targetCamPos.current.set(
-          planetPos.x + offsetDist * 0.7,
-          planetPos.y + offsetDist * 0.5,
-          planetPos.z + offsetDist,
-        );
-        targetLookAt.current.copy(planetPos);
+        const livePos = planetPositionsRef.current.get(selectedBody.id) ?? new THREE.Vector3();
+        const focusDist = selectedBody.id === 'saturn'
+          ? selectedBody.planetRadius * 4.6
+          : selectedBody.id === 'sun'
+          ? selectedBody.planetRadius * 3.2
+          : selectedBody.planetRadius * 3.4;
+
+        const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
+        const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
+
+        // Position camera to see sunlit quarter with slight elevation
+        const camX = livePos.x + radial.x * (focusDist * 0.85) + tangent.x * (focusDist * 0.4);
+        const camY = livePos.y + focusDist * 0.32;
+        const camZ = livePos.z + radial.z * (focusDist * 0.85) + tangent.z * (focusDist * 0.4);
+        targetCamPos.current.set(camX, camY, camZ);
+
+        // Frame planet on the left by offsetting target towards the right
+        const camToPlanet = livePos.clone().sub(targetCamPos.current).normalize();
+        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+        const frameOffset = camRight.multiplyScalar(selectedBody.planetRadius * 0.65);
+        targetLookAt.current.copy(livePos).add(frameOffset);
       } else {
         // Solar System overview
         targetCamPos.current.set(0, 22, 36);
@@ -119,14 +178,27 @@ function CameraController({
     if (viewMode === 'solar' && selectedBody && planetPositionsRef.current) {
       const livePos = planetPositionsRef.current.get(selectedBody.id);
       if (livePos) {
-        const offsetDist = Math.max(2.5, selectedBody.planetRadius * 4.2);
-        const desiredPos = new THREE.Vector3(
-          livePos.x + offsetDist * 0.7,
-          livePos.y + offsetDist * 0.5,
-          livePos.z + offsetDist,
-        );
+        const focusDist = selectedBody.id === 'saturn'
+          ? selectedBody.planetRadius * 4.6
+          : selectedBody.id === 'sun'
+          ? selectedBody.planetRadius * 3.2
+          : selectedBody.planetRadius * 3.4;
+
+        const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
+        const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
+
+        const camX = livePos.x + radial.x * (focusDist * 0.85) + tangent.x * (focusDist * 0.4);
+        const camY = livePos.y + focusDist * 0.32;
+        const camZ = livePos.z + radial.z * (focusDist * 0.85) + tangent.z * (focusDist * 0.4);
+        const desiredPos = new THREE.Vector3(camX, camY, camZ);
+
+        const camToPlanet = livePos.clone().sub(desiredPos).normalize();
+        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+        const frameOffset = camRight.multiplyScalar(selectedBody.planetRadius * 0.65);
+        const desiredTarget = livePos.clone().add(frameOffset);
+
         state.camera.position.lerp(desiredPos, 0.05);
-        controlsRef.current.target.lerp(livePos, 0.05);
+        controlsRef.current.target.lerp(desiredTarget, 0.05);
         controlsRef.current.update();
         return;
       }
@@ -146,13 +218,85 @@ function CameraController({
   return null;
 }
 
+function FrameReadyReporter({
+  viewMode,
+  onReady,
+}: {
+  viewMode: ViewMode;
+  onReady: () => void;
+}) {
+  const currentModeRef = useRef(viewMode);
+  const frameCountRef = useRef(0);
+
+  useEffect(() => {
+    if (currentModeRef.current !== viewMode) {
+      currentModeRef.current = viewMode;
+      frameCountRef.current = 0;
+    }
+  }, [viewMode]);
+
+  useFrame(() => {
+    if (frameCountRef.current < 2) {
+      frameCountRef.current += 1;
+      if (frameCountRef.current === 2) {
+        onReady();
+      }
+    }
+  });
+
+  return null;
+}
+
+function ExperienceLoader({ isBusy }: { isBusy: boolean }) {
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    let showTimer: ReturnType<typeof setTimeout>;
+    let safetyTimer: ReturnType<typeof setTimeout>;
+
+    if (isBusy) {
+      // 75ms debounce prevents flickering on instant cache hits
+      showTimer = setTimeout(() => {
+        setVisible(true);
+      }, 75);
+
+      // Safety timeout: never allow loader to remain stuck indefinitely
+      safetyTimer = setTimeout(() => {
+        setVisible(false);
+      }, 8000);
+    } else {
+      setVisible(false);
+    }
+
+    return () => {
+      clearTimeout(showTimer);
+      clearTimeout(safetyTimer);
+    };
+  }, [isBusy]);
+
+  if (!visible) return null;
+
+  return (
+    <div
+      className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none select-none transition-opacity duration-300"
+      aria-hidden="true"
+    >
+      <ThreeDotLoader size="md" />
+    </div>
+  );
+}
+
 export default function Experience() {
   // Master View Mode: 'solar' | 'moon' | 'mars'
   const [viewMode, setViewMode] = useState<ViewMode>('solar');
+  const [modeReady, setModeReady] = useState(false);
+  const { active, errors, progress } = useProgress();
+  const isBusy = (!modeReady || active) && !(errors.length > 0 && progress === 100);
 
   // Solar system state
   const [selectedBody, setSelectedBody] = useState<CelestialBody | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const planetPositionsRef = useRef<Map<string, THREE.Vector3>>(new Map());
 
   // Moon museum state
@@ -174,6 +318,7 @@ export default function Experience() {
     setSelectedBody(null);
     setSelectedMachine(null);
     setHoveredId(null);
+    setModeReady(false);
     setViewMode('moon');
   }, []);
 
@@ -182,6 +327,7 @@ export default function Experience() {
     setSelectedBody(null);
     setSelectedMarsMachine(null);
     setHoveredMarsId(null);
+    setModeReady(false);
     setViewMode('mars');
   }, []);
 
@@ -192,6 +338,7 @@ export default function Experience() {
     setHoveredId(null);
     setHoveredMarsId(null);
     setSelectedBody(null);
+    setModeReady(false);
     setViewMode('solar');
   }, []);
 
@@ -225,123 +372,100 @@ export default function Experience() {
 
   return (
     <div className="relative w-full h-full select-none">
-      {/* Top Header Branding & Mode Controls */}
-      <div className="absolute top-5 left-5 z-20 pointer-events-auto flex flex-col gap-2">
-        <div>
-          <div className="text-xs uppercase tracking-[0.25em] text-white/95 font-medium font-sans">
-            The Museum of Forgotten Machines
-          </div>
-          <div className="text-[10px] uppercase tracking-[0.2em] font-mono mt-0.5 text-sky-400/80">
-            {viewMode === 'solar' && 'Interactive 3D Solar System'}
-            {viewMode === 'moon' && 'Lunar Exploration Archive'}
-            {viewMode === 'mars' && 'Martian Exploration Archive'}
-          </div>
-        </div>
+      {/* Premium Three-Dot Scene & Asset Loading Indicator */}
+      <ExperienceLoader isBusy={isBusy} />
 
-        {/* View mode toggle buttons */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {viewMode !== 'solar' ? (
+      {/* Solar System Mode: Truly Transparent Liquid Glass Collapsible Sidebar & Museum Shortcuts */}
+      {viewMode === 'solar' && (
+        <>
+          <SolarSidebar
+            isOpen={sidebarOpen}
+            onToggle={setSidebarOpen}
+            selectedBody={selectedBody}
+            onSelectBody={setSelectedBody}
+            isPlaying={isPlaying}
+            onTogglePlay={() => setIsPlaying(!isPlaying)}
+            onReset={handleReset}
+          />
+
+          {/* Top-Right Museum Navigation Buttons */}
+          <nav
+            aria-label="Museum Navigation"
+            className="fixed z-20 pointer-events-auto flex items-center gap-2 sm:gap-3 select-none"
+            style={{
+              top: 'max(1.25rem, env(safe-area-inset-top, 1.25rem))',
+              right: 'max(1.25rem, env(safe-area-inset-right, 1.25rem))',
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleEnterMoonMuseum}
+              aria-label="Explore Moon Museum"
+              className="group inline-flex items-center justify-center h-[38px] px-4 rounded-full text-xs sm:text-[13px] tracking-[0.16em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] will-change-transform border-0 outline-none cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+              style={{
+                background: 'rgba(0, 0, 0, 0.28)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+              }}
+            >
+              <span>Moon Museum</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleEnterMarsMuseum}
+              aria-label="Explore Mars Museum"
+              className="group inline-flex items-center justify-center h-[38px] px-4 rounded-full text-xs sm:text-[13px] tracking-[0.16em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] will-change-transform border-0 outline-none cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.35)]"
+              style={{
+                background: 'rgba(0, 0, 0, 0.28)',
+                backdropFilter: 'blur(16px)',
+                WebkitBackdropFilter: 'blur(16px)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+              }}
+            >
+              <span>Mars Museum</span>
+            </button>
+          </nav>
+        </>
+      )}
+
+      {/* Moon & Mars Modes: Minimal Left-Side Header */}
+      {viewMode !== 'solar' && (
+        <header className="absolute top-6 left-6 z-20 pointer-events-auto flex flex-col gap-1.5 select-none">
+          {/* Museum Identity */}
+          <div className="flex items-center gap-2.5">
+            {viewMode === 'moon' ? <MoonArchiveLogo /> : <MarsArchiveLogo />}
+            <span
+              style={{
+                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+                fontWeight: 500,
+              }}
+              className="text-sm tracking-[0.2em] uppercase text-white/95 leading-none"
+            >
+              {viewMode === 'moon' ? 'Moon Archives' : 'Mars Archives'}
+            </span>
+          </div>
+
+          {/* Secondary Return Control */}
+          <div>
             <button
               onClick={handleReturnToSolar}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] border border-white/20 text-[10px] uppercase tracking-[0.2em] text-white/90 hover:text-white transition-all shadow-lg"
+              className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.18em] text-white/50 hover:text-white transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.97] origin-left will-change-transform bg-transparent border-0 outline-none p-0 cursor-pointer group mt-0.5"
+              aria-label="Return to Solar System"
             >
-              <span>←</span>
-              <span>Solar System</span>
+              <span className="transition-transform duration-200 ease-out group-hover:-translate-x-1 text-white/40 group-hover:text-white">
+                ←
+              </span>
+              <span className="font-light">
+                Return to Solar System
+              </span>
             </button>
-          ) : (
-            <>
-              <button
-                onClick={handleEnterMoonMuseum}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-950/70 hover:bg-sky-900/80 border border-sky-400/30 text-[10px] uppercase tracking-[0.2em] text-sky-200 transition-all shadow-md"
-              >
-                <span>✦</span>
-                <span>Moon Museum</span>
-              </button>
-              <button
-                onClick={handleEnterMarsMuseum}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-950/70 hover:bg-orange-900/80 border border-orange-500/35 text-[10px] uppercase tracking-[0.2em] text-orange-200 transition-all shadow-md"
-              >
-                <span>✦</span>
-                <span>Mars Museum</span>
-              </button>
-            </>
-          )}
-
-          {/* Direct switcher between Moon and Mars museums */}
-          {viewMode === 'moon' && (
-            <button
-              onClick={handleEnterMarsMuseum}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-950/50 hover:bg-orange-900/60 border border-orange-500/25 text-[9px] uppercase tracking-[0.18em] text-orange-300 transition-all"
-            >
-              <span>✦</span>
-              <span>Switch to Mars</span>
-            </button>
-          )}
-
-          {viewMode === 'mars' && (
-            <button
-              onClick={handleEnterMoonMuseum}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-sky-950/50 hover:bg-sky-900/60 border border-sky-400/25 text-[9px] uppercase tracking-[0.18em] text-sky-300 transition-all"
-            >
-              <span>✦</span>
-              <span>Switch to Moon</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Top-Right Navigation Pills & Controls */}
-      <div className="absolute top-5 right-5 z-20 flex flex-col items-end gap-2 pointer-events-auto">
-        <div className="flex items-center gap-2">
-          {viewMode === 'solar' && (
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="text-[10px] uppercase tracking-[0.18em] px-2.5 py-1 rounded border border-white/10 hover:border-white/20 bg-black/40 backdrop-blur-sm text-white/70 hover:text-white transition-colors"
-              title={isPlaying ? 'Pause revolution' : 'Resume revolution'}
-            >
-              {isPlaying ? '⏸ Pause' : '▶ Orbit'}
-            </button>
-          )}
-
-          <button
-            onClick={handleReset}
-            className="text-[10px] uppercase tracking-[0.18em] px-2.5 py-1 rounded border border-white/10 hover:border-white/20 bg-black/40 backdrop-blur-sm text-white/70 hover:text-white transition-colors"
-          >
-            Reset View
-          </button>
-        </div>
-
-        {/* Quick Planet Pills in Solar System mode */}
-        {viewMode === 'solar' && (
-          <div className="flex flex-wrap items-center justify-end gap-1.5 max-w-sm">
-            <button
-              onClick={() => setSelectedBody(null)}
-              className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition-all ${
-                selectedBody === null
-                  ? 'bg-sky-500/30 text-sky-200 border border-sky-400/50'
-                  : 'bg-black/30 hover:bg-white/10 text-white/60 hover:text-white border border-white/10'
-              }`}
-            >
-              Overview
-            </button>
-            {CELESTIAL_BODIES.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => setSelectedBody(b)}
-                className={`text-[9px] uppercase tracking-wider px-2 py-0.5 rounded transition-all ${
-                  selectedBody?.id === b.id
-                    ? b.id === 'mars'
-                      ? 'bg-orange-500/30 text-orange-200 border border-orange-400/50'
-                      : 'bg-sky-500/30 text-sky-200 border border-sky-400/50'
-                    : 'bg-black/30 hover:bg-white/10 text-white/60 hover:text-white border border-white/10'
-                }`}
-              >
-                {b.name}
-              </button>
-            ))}
           </div>
-        )}
-      </div>
+        </header>
+      )}
 
       {/* Info Panels */}
       {viewMode === 'solar' && selectedBody && (
@@ -367,14 +491,14 @@ export default function Experience() {
         />
       )}
 
-      {/* Bottom Hint */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none text-center px-4">
-        <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-light font-sans">
-          {viewMode === 'solar' && 'Drag to explore · Select a planet · Discover Moon & Mars museum gateways'}
-          {viewMode === 'moon' && 'Explore the Moon · Select a forgotten machine to discover its story'}
-          {viewMode === 'mars' && 'Explore Mars · Select a rover or lander to discover its story'}
-        </p>
-      </div>
+      {/* Bottom Hint (Only in Solar System Mode) */}
+      {viewMode === 'solar' && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none text-center px-4">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-light font-sans">
+            Drag to explore · Select a planet · Discover Moon & Mars museum gateways
+          </p>
+        </div>
+      )}
 
       {/* Main 3D Canvas */}
       <Canvas
@@ -483,18 +607,23 @@ export default function Experience() {
 
         <OrbitControls
           ref={controlsRef}
-          enablePan={viewMode === 'solar'}
-          minDistance={viewMode === 'solar' ? 5 : MOON_RADIUS + 0.35}
-          maxDistance={viewMode === 'solar' ? 65 : MOON_RADIUS + 8}
+          enablePan={viewMode === 'solar' && !selectedBody}
+          minDistance={viewMode === 'solar' ? (selectedBody ? selectedBody.planetRadius * 1.3 : 3) : MOON_RADIUS + 0.35}
+          maxDistance={viewMode === 'solar' ? 70 : MOON_RADIUS + 8}
           rotateSpeed={0.5}
           zoomSpeed={0.7}
           enableDamping
           dampingFactor={0.08}
           onStart={() => {
+            cursorStore.set('grabbing');
             if (viewMode === 'moon') setAutoRotateMoon(false);
             if (viewMode === 'mars') setAutoRotateMars(false);
           }}
+          onEnd={() => {
+            cursorStore.set('default');
+          }}
         />
+        <FrameReadyReporter viewMode={viewMode} onReady={() => setModeReady(true)} />
       </Canvas>
     </div>
   );

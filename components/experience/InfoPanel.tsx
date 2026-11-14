@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { LunarMachine } from '@/lib/lunar-machines';
 import { formatCoordinates } from '@/lib/moon-coords';
 
@@ -8,67 +9,70 @@ interface InfoPanelProps {
   onClose: () => void;
 }
 
+/**
+ * Truly Transparent Liquid Glass Lunar Dossier.
+ * Pure minimal white typography, zero solid backgrounds, zero colored containers.
+ */
 export default function InfoPanel({ machine, onClose }: InfoPanelProps) {
   return (
     <aside
       aria-label="Machine Information"
-      className="absolute right-4 top-4 bottom-14 w-84 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl z-20 pointer-events-auto shadow-2xl transition-all"
+      className="absolute right-5 top-5 bottom-16 w-80 max-w-[calc(100vw-2.5rem)] overflow-y-auto no-scrollbar rounded-2xl z-20 pointer-events-auto transition-all animate-fade-in"
       style={{
-        background: 'rgba(6, 11, 22, 0.84)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        border: '1px solid rgba(125, 211, 252, 0.18)',
-        boxShadow: '0 8px 32px 0 rgba(0, 0, 0, 0.7)',
+        background: 'rgba(0, 0, 0, 0.32)',
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+        border: '1px solid rgba(255, 255, 255, 0.06)',
       }}
     >
       {/* Header */}
       <div
-        className="sticky top-0 z-10 flex items-start justify-between gap-3 px-5 pt-4 pb-3"
+        className="sticky top-0 z-10 flex items-start justify-between gap-3 px-6 pt-5 pb-3"
         style={{
-          background: 'rgba(6, 11, 22, 0.94)',
-          borderBottom: '1px solid rgba(125, 211, 252, 0.1)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
         }}
       >
         <div>
-          <div className="text-[10px] uppercase tracking-[0.25em] text-sky-400/90 font-mono">
+          <div className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-mono">
             {machine.missionName}
           </div>
-          <h2 className="text-sm font-medium text-white/95 leading-snug mt-0.5">
+          <h2 className="text-base font-light text-white tracking-wider mt-0.5 font-sans">
             {machine.name}
           </h2>
         </div>
         <button
           onClick={onClose}
           aria-label="Close panel"
-          className="mt-0.5 p-1 rounded hover:bg-white/10 text-white/40 hover:text-white/90 transition-colors text-sm leading-none"
+          className="mt-0.5 p-1 text-white/40 hover:text-white transition-all duration-200 ease-out hover:scale-[1.12] active:scale-[0.92] text-sm leading-none bg-transparent border-0 outline-none cursor-pointer"
         >
           ✕
         </button>
       </div>
 
       {/* Content */}
-      <div className="px-5 pb-6 pt-3 space-y-4 text-xs leading-relaxed text-white/70">
+      <div className="px-6 pb-6 pt-4 space-y-4 text-xs leading-relaxed text-white/70">
         {/* Geographic & Mission Meta Grid */}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 pt-1">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           <MetaItem label="Agency" value={machine.agency} />
           <MetaItem label="Country" value={machine.country} />
           <MetaItem label="Landed" value={machine.landingDate} />
           <MetaItem label="Coordinates" value={formatCoordinates(machine.lat, machine.lon)} />
         </div>
 
-        <Divider />
+        <div className="border-t border-white/[0.06]" />
 
         <Section label="Original Purpose" text={machine.purpose} />
         <Section label="Why Left Behind" text={machine.leftBehind} />
         <Section label="Historical Significance" text={machine.significance} />
         <Section label="Current Status" text={machine.currentStatus} />
 
-        <div className="pt-2">
+        <div className="pt-2 border-t border-white/[0.06]">
           <button
             onClick={onClose}
-            className="w-full py-2 px-3 text-[10px] uppercase tracking-[0.2em] text-sky-300/80 hover:text-sky-200 bg-sky-950/40 hover:bg-sky-900/50 border border-sky-500/20 rounded transition-colors text-center"
+            className="w-full text-left py-1 text-[9px] uppercase tracking-[0.2em] text-white/40 hover:text-white transition-all duration-200 ease-out hover:scale-[1.02] active:scale-[0.97] origin-left will-change-transform flex items-center gap-1.5 group bg-transparent border-0 outline-none p-0 cursor-pointer"
           >
-            ← Return to Full Moon
+            <span className="transition-transform duration-200 ease-out group-hover:-translate-x-0.5">←</span>
+            <span>Return to Full Moon</span>
           </button>
         </div>
       </div>
@@ -90,14 +94,10 @@ function MetaItem({ label, value }: { label: string; value: string }) {
 function Section({ label, text }: { label: string; text: string }) {
   return (
     <div>
-      <div className="text-[9px] uppercase tracking-[0.2em] text-sky-400/70 font-mono mb-1">
+      <div className="text-[9px] uppercase tracking-[0.2em] text-white/45 font-mono mb-1">
         {label}
       </div>
-      <p className="text-white/75 text-[11px] leading-relaxed">{text}</p>
+      <p className="text-white/70 text-[11px] leading-relaxed font-light">{text}</p>
     </div>
   );
-}
-
-function Divider() {
-  return <div className="border-t border-white/[0.08]" />;
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import spaceBackground from "@/components/spacebackground.jpg";
+import CustomCursor from "@/components/cursor/CustomCursor";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -40,6 +41,8 @@ export default function RootLayout({
           <div className="absolute inset-0 bg-black/45" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_25%,rgba(0,0,0,0.8)_100%)]" />
         </div>
+        {/* Custom Space Navigation & Targeting Reticle Cursor */}
+        <CustomCursor />
         {children}
       </body>
     </html>

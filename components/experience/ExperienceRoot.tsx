@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import ThreeDotLoader from '@/components/ThreeDotLoader';
 import Experience from './Experience';
 
 export default function ExperienceRoot() {
@@ -12,11 +13,8 @@ export default function ExperienceRoot() {
 
   if (!mounted) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 animate-fade-in text-white/60 select-none">
-        <div className="h-1.5 w-1.5 rounded-full bg-white/50 animate-ping" />
-        <p className="text-xs uppercase tracking-[0.3em] font-light text-white/50">
-          Diving deep into space...
-        </p>
+      <div className="flex h-full w-full items-center justify-center select-none">
+        <ThreeDotLoader size="md" />
       </div>
     );
   }

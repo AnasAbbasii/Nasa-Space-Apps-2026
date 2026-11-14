@@ -7,6 +7,7 @@ import { Html } from '@react-three/drei';
 import { Line2, LineMaterial, LineGeometry } from 'three-stdlib';
 import { marsLatLonToVector3, MARS_RADIUS } from '@/lib/mars-coords';
 import type { MarsMachine } from '@/lib/mars-machines';
+import { cursorStore } from '@/lib/cursor-store';
 
 interface MarsCalloutsProps {
   machines: MarsMachine[];
@@ -235,13 +236,20 @@ export default function MarsCallouts({
             <Html center={false} distanceFactor={5.5}>
               <div
                 ref={entry.htmlDivRef}
-                onMouseEnter={() => onHover(m.id)}
-                onMouseLeave={() => onHover(null)}
+                data-cursor="focus"
+                onMouseEnter={() => {
+                  onHover(m.id);
+                  cursorStore.set('focus');
+                }}
+                onMouseLeave={() => {
+                  onHover(null);
+                  cursorStore.set('default');
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   onSelect(m);
                 }}
-                className="select-none cursor-pointer transition-opacity duration-200"
+                className="select-none cursor-pointer transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] will-change-transform"
                 style={{
                   transform: isLeft ? 'translate(calc(-100% - 5px), -50%)' : 'translate(5px, -50%)',
                   background: 'transparent',

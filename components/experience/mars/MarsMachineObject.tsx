@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import * as THREE from 'three';
 import { marsLatLonToVector3, MARS_RADIUS } from '@/lib/mars-coords';
 import type { MarsMachine } from '@/lib/mars-machines';
+import { cursorStore } from '@/lib/cursor-store';
 
 interface MarsMachineObjectProps {
   machine: MarsMachine;
@@ -42,10 +43,12 @@ export default function MarsMachineObject({
       onPointerOver={(e) => {
         e.stopPropagation();
         document.body.style.cursor = 'pointer';
+        cursorStore.set('focus');
         onHover(machine.id);
       }}
       onPointerOut={() => {
         document.body.style.cursor = 'default';
+        cursorStore.set('default');
         onHover(null);
       }}
     >
