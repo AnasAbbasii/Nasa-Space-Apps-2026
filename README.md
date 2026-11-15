@@ -1,97 +1,249 @@
-# Beyond the Mission
-> *"Humanity may leave its machines behind, but it should never leave their stories forgotten."*
+# Beyond the Mission — The Museum of Forgotten Machines
 
-An immersive, cinematic, interactive 3D Solar System and planetary exploration museum developed for the **NASA Space Apps Challenge 2026**.
+<div align="center">
 
-The experience invites visitors to explore our Solar System and discover the human-made spacecraft, landers, rovers, and equipment left behind on extraterrestrial surfaces at their verified geographic coordinates.
+[![NASA Space Apps Challenge 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026%20Global%20Challenge-blue.svg?style=for-the-badge&logo=nasa)](https://www.spaceappschallenge.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16.4.6-black.svg?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19.3.0-61DAFB.svg?style=for-the-badge&logo=react)](https://react.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.187.0-black.svg?style=for-the-badge&logo=three.js)](https://threejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/AnasAbbasii/Nasa-Space-Apps-2026/ci.yml?branch=main&style=for-the-badge&label=CI%20Build)](https://github.com/AnasAbbasii/Nasa-Space-Apps-2026/actions)
 
----
+<p align="center">
+  <strong>An immersive, cinematic 3D web museum honoring humanity’s robotic pioneers and abandoned exploration machines on the Moon and Mars.</strong>
+</p>
 
-## Key Features
+<p align="center">
+  <em>"Humanity may leave its machines behind, but it should never leave their stories forgotten."</em>
+</p>
 
-- **Cinematic Landing Experience:** Minimalist entrance portal with atmospheric cosmic backgrounds and smooth transition animations.
-- **Interactive 3D Solar System:** Dynamic 3D simulation of our Solar System featuring the Sun and orbiting planets (Venus, Earth, Mars, Saturn, Uranus, Neptune) with accurate axial tilts, orbital speeds, and orbital paths.
-- **Real-Time Orbit Following & Telemetry:** Seamless camera interpolation tracking orbiting planets with verified astronomical metrics from NASA databases.
-- **Dedicated Moon Exploration Museum:** High-resolution 3D Moon sphere featuring verified landing coordinates for Apollo 11–17 and Surveyor 3 missions.
-- **Dedicated Mars Exploration Museum:** High-resolution 3D Mars sphere cataloging 9 verified NASA robotic landing sites (Viking 1 & 2, Pathfinder/Sojourner, Spirit, Opportunity, Phoenix, Curiosity, InSight, Perseverance & Ingenuity).
-- **Minimalist Laser HUD Callouts:** Non-intersecting, straight white connection lines rendered with screen-space `Line2` geometry and floating Space Grotesk labels with zero background cards.
-- **Comprehensive Historical Dossiers:** Slide-out glassmorphic intelligence panels detailing mission agency, landing dates, precise coordinates, original purpose, why the machine was left behind, historical significance, and current verified status.
-- **Fluid Cross-Museum Navigation:** Seamless transitions between the Solar System overview and localized planetary archives without full page reloads.
+[Explore Online](https://github.com/AnasAbbasii/Nasa-Space-Apps-2026) • [Documentation PDF](./documentation/Beyond_the_Mission_Complete_Documentation.pdf) • [Architecture Guide](./docs/03-project-architecture.md) • [Getting Started](#-getting-started)
 
----
-
-## Technology Stack
-
-- **Framework:** [Next.js 16 (App Router)](https://nextjs.org/)
-- **UI Engine:** [React 19](https://react.dev/)
-- **3D Graphics:** [Three.js](https://threejs.org/), [@react-three/fiber](https://docs.pmnd.rs/react-three-fiber), and [@react-three/drei](https://github.com/pmndrs/drei)
-- **Styling & Design:** [Tailwind CSS v4](https://tailwindcss.com/) & Space Grotesk Typography
-- **Language:** TypeScript 5 (Strict Mode)
-- **Build System:** Webpack engine (`next build --webpack`)
+</div>
 
 ---
 
-## Project Documentation Index
+## 🌌 Project Overview
 
-Comprehensive documentation is available in the [`docs/`](./docs) directory:
+**Beyond the Mission** is an interactive 3D digital monument created for the **NASA Space Apps Challenge 2026** by Team **Fortes In Ignoto**.
 
-1. [**01 — Project Overview**](./docs/01-project-overview.md): Project concept, challenge context, audience, and objectives.
-2. [**02 — Technology Stack**](./docs/02-technology-stack.md): Detailed inventory of all languages, libraries, and tools.
-3. [**03 — Project Architecture**](./docs/03-project-architecture.md): Application structure, component tree, and Mermaid diagrams.
-4. [**04 — Features and User Experience**](./docs/04-features-and-user-experience.md): Complete feature breakdown, interaction mechanics, and implementation status.
-5. [**05 — 3D Assets and Scientific Data**](./docs/05-assets-and-scientific-data.md): 3D model records, texture maps, coordinate math, and NASA datasets.
-6. [**06 — Application Workflows**](./docs/06-application-workflows.md): User journeys, navigation sequences, and Mermaid flowcharts.
-7. [**07 — Visual Design and Interface**](./docs/07-visual-design.md): Design philosophy, color palette, typography, and glassmorphic UI.
-8. [**08 — Setup and Installation**](./docs/08-setup-and-installation.md): Environment prerequisites, installation steps, and run commands.
-9. [**09 — Implementation Status and Limitations**](./docs/09-implementation-status.md): Implementation audit, known limits, and performance considerations.
-10. [**10 — Future Development**](./docs/10-future-development.md): Prioritized roadmap for upcoming phases.
+Across sixty years of interplanetary exploration, humanity has dispatched dozens of orbiters, landers, and rovers into the solar system. When their scientific missions conclude, their batteries drain, or Martian dust covers their solar arrays, these machines remain behind — frozen in the silence of deep space.
+
+This application resurrects their memory through:
+1. **Interactive 3D Solar System:** A real-time orbital simulation of the Sun and planets with scientifically calibrated axial tilts, orbital velocities, and smooth camera tracking.
+2. **High-Precision Planetary Museums:** 3D spherical maps of **Earth's Moon** and **Mars**, featuring 16 cataloged historical missions pinned to their exact NASA-verified coordinates.
+3. **Cinematic Storytelling Engine:** Full-screen documentary video experiences featuring authentic NASA archival imagery, voice narration, synchronized progress bars, and single-line sequential captions.
+4. **Spatial HUD Callouts:** Non-occluding laser-style HUD lines and responsive dossiers detailing mission duration, landing coordinates, scientific legacy, and why each artifact remained behind.
 
 ---
 
-## Getting Started
+## 🪐 Cataloged Missions & Machines
+
+### 🌕 The Moon Museum (7 Historic Missions)
+| Mission / Machine | Landing Site | Coordinates | Active Dates | Historical Significance |
+| :--- | :--- | :--- | :--- | :--- |
+| **Apollo 11 (Eagle)** | Mare Tranquillitatis | 0.674° N, 23.473° E | Jul 20–21, 1969 | First crewed lunar landing; descent stage left as permanent memorial |
+| **Apollo 12 (Intrepid)** | Oceanus Procellarum | 3.012° S, 23.422° W | Nov 19–20, 1969 | Pinpoint landing 163 m from Surveyor 3; retrieved returned parts |
+| **Apollo 14 (Antares)** | Fra Mauro Formation | 3.645° S, 17.471° W | Feb 5–6, 1971 | First exploration of lunar highlands; modular equipment transporter |
+| **Apollo 15 (Falcon)** | Hadley-Apennine | 26.132° N, 3.634° E | Jul 30 – Aug 2, 1971 | First Lunar Roving Vehicle (LRV); Genesis Rock discovery |
+| **Apollo 16 (Orion)** | Descartes Highlands | 8.973° S, 15.500° E | Apr 21–24, 1972 | Highland volcanism investigation; ultraviolet camera deployment |
+| **Apollo 17 (Challenger)**| Taurus-Littrow | 20.191° N, 30.772° E | Dec 11–14, 1972 | Longest crewed surface stay (75 h); Harrison Schmitt scientist-astronaut |
+| **Surveyor 3** | Oceanus Procellarum | 3.016° S, 23.418° W | Apr 20, 1967 – May 4, 1967 | Robotic trenching proving lunar soil could support human weight |
+
+### 🔴 The Mars Museum (9 Historic Missions)
+| Mission / Machine | Landing Site | Coordinates | Active Dates | Historical Significance |
+| :--- | :--- | :--- | :--- | :--- |
+| **Viking 1** | Chryse Planitia | 22.48° N, 312.05° E | Jul 20, 1976 – Nov 11, 1982 | First successful prolonged US Mars surface operations; biological tests |
+| **Viking 2** | Utopia Planitia | 48.27° N, 134.02° E | Sep 3, 1976 – Apr 11, 1980 | High-latitude seismic and atmospheric analysis in polar terrain |
+| **Mars Pathfinder & Sojourner** | Ares Vallis | 19.33° N, 326.45° E | Jul 4, 1997 – Sep 27, 1997 | First micro-rover on Mars; demonstrated airbag landing architecture |
+| **Spirit (MER-A)** | Gusev Crater | 14.57° S, 175.47° E | Jan 4, 2004 – Mar 22, 2010 | Uncovered pure silica deposits indicating ancient hydrothermal vents |
+| **Opportunity (MER-B)**| Meridiani Planum | 1.95° S, 354.47° E | Jan 25, 2004 – Jun 10, 2018 | Traversed 45.16 km over 14+ years; discovered hematite "blueberries" |
+| **Phoenix** | Vastitas Borealis | 68.22° N, 234.25° E | May 25, 2008 – Nov 2, 2008 | Direct confirmation of water-ice and perchlorate salts in arctic soil |
+| **Curiosity (MSL)** | Gale Crater | 4.59° S, 137.44° E | Aug 6, 2012 – Present | Nuclear-powered rover proving Gale Crater was once habitable |
+| **InSight** | Elysium Planitia | 4.50° N, 135.62° E | Nov 26, 2018 – Dec 15, 2022 | First planetary geophysics station; detected 1,300+ marsquakes |
+| **Perseverance & Ingenuity** | Jezero Crater | 18.38° N, 77.58° E | Feb 18, 2021 – Present | Seeking signs of ancient biosignatures; first powered extraterrestrial flight |
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology | Version | Purpose |
+| :--- | :--- | :--- | :--- |
+| **Framework** | [Next.js (App Router)](https://nextjs.org/) | `16.4.6` | Server-side rendering, API routes, Turbopack bundling |
+| **Frontend Core** | [React](https://react.dev/) | `19.3.0` | Declarative UI, state orchestration, React 19 compiler compatibility |
+| **3D Graphics** | [Three.js](https://threejs.org/) | `0.187.0` | WebGL scene graph, geometry, materials, PBR shaders |
+| **R3F Ecosystem** | [@react-three/fiber](https://docs.pmnd.rs/react-three-fiber) | `9.8.2` | React declarative wrapper for Three.js canvas |
+| **R3F Utilities** | [@react-three/drei](https://github.com/pmndrs/drei) | `10.7.9` | Camera controls, screen-space Line2 shaders, texture loading |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) | `4.3.3` | Utility-first styling with `@tailwindcss/turbopack` |
+| **Language** | [TypeScript](https://www.typescriptlang.org/) | `5.0+` | End-to-end strict type-checking |
+| **Audio Engine** | Web Audio API / Voice Studio | Custom | Local streaming voice synthesis & synchronized audio playback |
+| **CI / CD** | GitHub Actions | v4 | Automated linting, type-checking, and production builds |
+
+---
+
+## 🏗️ Architecture & Component Hierarchy
+
+```text
+appfolder/
+├── .github/workflows/ci.yml       # GitHub Actions CI workflow (lint, typecheck, build)
+├── app/
+│   ├── api/narration/route.ts     # OpenAI-compatible streaming TTS endpoint
+│   ├── experience/page.tsx        # Dynamic client mount for 3D experience
+│   ├── globals.css                # Cosmic styling, animations, Tailwind directives
+│   ├── layout.tsx                 # Root layout with Space Grotesk font injection
+│   └── page.tsx                   # Atmospheric cinematic landing portal
+├── components/
+│   ├── cursor/CustomCursor.tsx    # Hardware-accelerated custom cursor
+│   ├── experience/
+│   │   ├── Experience.tsx         # Unified 3D Canvas, camera director, UI overlay
+│   │   ├── ExperienceRoot.tsx     # SSR-safe dynamic wrapper with preloader
+│   │   ├── hud/                   # Minimalist HUD, coordinates & telemetry
+│   │   ├── mars/
+│   │   │   ├── Mars.tsx           # High-res Mars sphere with coordinates math
+│   │   │   ├── MarsCallouts.tsx   # Screen-space Line2 HUD markers for Mars rovers
+│   │   │   └── MarsPanel.tsx      # Slide-out glassmorphic rover dossier
+│   │   ├── moon/
+│   │   │   ├── Moon.tsx           # High-res Moon sphere with coordinates math
+│   │   │   ├── DynamicCallouts.tsx# Screen-space Line2 HUD markers for Apollo sites
+│   │   │   └── PlanetInfoPanel.tsx# Slide-out Apollo mission dossier
+│   │   ├── solar/
+│   │   │   ├── SolarSystem.tsx    # Sun + 6 planets with orbital physics
+│   │   │   └── SolarSidebar.tsx   # Planetary telemetry drawer
+│   │   └── storytelling/
+│   │       └── StorytellingView.tsx# Documentary video player, audio sync, captions
+├── docs/                          # Architectural and technical documentation chapters
+├── documentation/                 # Full NASA publication PDF (45+ pages) & source
+├── lib/
+│   ├── audio.ts                   # Web Audio helper and fallback synthesizers
+│   └── voice-studio.ts            # Voice Studio integration with retry logic
+├── public/
+│   ├── 3dmodels/                  # 3D planet assets and textures
+│   └── stories/                   # Curated archival photography for all 16 missions
+├── .env.example                   # Environment configuration template
+├── package.json                   # Dependencies and npm scripts
+└── tsconfig.json                  # Strict TypeScript compiler options
+```
+
+---
+
+## 🚀 Getting Started
+
+Follow these instructions to clone, configure, and run the project locally on your machine.
 
 ### Prerequisites
-- Node.js 18.18.0 or higher
-- npm, pnpm, or yarn
+- **Node.js**: `v20.x` or `v22.x` (LTS recommended)
+- **npm**: `v10.x` or higher (bundled with Node.js)
+- **Modern Browser**: Chrome 120+, Edge 120+, Firefox 120+, or Safari 17+ with WebGL2 support.
 
-### Installation
+### 1. Clone the Repository
 ```bash
-# Clone the repository
-git clone https://github.com/<your-org>/abandoned-but-not-forgotten.git
-cd appfolder
-
-# Install dependencies
-npm install
+git clone https://github.com/AnasAbbasii/Nasa-Space-Apps-2026.git
+cd Nasa-Space-Apps-2026
 ```
 
-### Running Locally
+### 2. Install Dependencies
 ```bash
-# Launch development server
+npm ci
+```
+*(Alternatively, use `npm install` if not using lockfile-strict installation).*
+
+### 3. Configure Environment Variables
+Copy the example environment configuration:
+```bash
+cp .env.example .env.local
+```
+*(On Windows Command Prompt: `copy .env.example .env.local`; on PowerShell: `Copy-Item .env.example .env.local`).*
+
+The default configuration is ready for immediate standalone execution. Local Voice Studio audio synthesis is optional — if not active, the system automatically uses pre-cached audio or high-fidelity Web Speech fallback.
+
+| Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `VOICESTUDIO_BASE_URL` | `http://127.0.0.1:3900/v1` | Local Voice Studio OpenAI-compatible TTS endpoint |
+| `VOICESTUDIO_API_KEY` | `voicestudio` | API authorization key |
+| `VOICESTUDIO_MODEL` | `tts-1` | Target TTS synthesis model |
+| `VOICESTUDIO_VOICE` | `default` | Voice persona selector |
+| `VOICESTUDIO_MODE` | `storytelling` | Audio tuning profile |
+| `VOICESTUDIO_PERSONALITY` | `narrator` | Narrative style |
+| `VOICESTUDIO_INSTRUCT` | `middle-aged, low pitch`| Vocal direction and pitch instruction |
+
+### 4. Launch Development Server
+```bash
 npm run dev
-
-# Open http://localhost:3000 in your browser
 ```
+Open your browser and navigate to [http://localhost:3000](http://localhost:3000).
 
-### Production Build
+### 5. Production Build & Verification
+To test the production build locally with Turbopack:
 ```bash
-# Build optimized production bundle
 npm run build
-
-# Start production server
 npm run start
 ```
 
 ---
 
-## Current Status
-- **Core Architecture:** Complete
-- **Landing Page:** Complete
-- **Solar System Simulation:** Complete
-- **Moon Museum:** Complete
-- **Mars Museum:** Complete
-- **Type Safety & Build:** 0 Errors (`tsc --noEmit` and `next build --webpack` exit code 0)
+## 🎮 Interactive Controls & Navigation
+
+- **Solar System Orbit:** Click and drag left mouse button to orbit the camera around the solar system. Scroll to zoom in/out.
+- **Select Planet:** Click on any orbiting planet or use the planetary selector in the sidebar to initiate a smooth camera flight to that world.
+- **Museum Focus Mode:** When entering the Moon or Mars museum:
+  - **Slow Rotation:** Planets rotate at a relaxed, steady rate (`0.0006 rad/frame`) for comfortable inspection.
+  - **Pause-on-Hover:** Hovering over the planet or any machine marker automatically pauses rotation. Moving away smoothly resumes rotation without coordinate jumping.
+  - **Marker Interaction:** Click on any glowing HUD marker to open the mission dossier and inspect verified telemetry.
+- **Cinematic Storytelling:** In any mission panel, click **"Experience Cinematic Story"** to launch the full-screen documentary player:
+  - **Spacebar / Click:** Pause or resume narration and slide progression.
+  - **Progress Bar:** Real-time red tracking bar at the bottom edge synchronized with the voice narration.
+  - **Captions:** Clean, single-line sequential captions updating sentence by sentence.
+  - **Escape / Close Button:** Return smoothly to the 3D museum view.
 
 ---
 
-## License
-MIT License. See [LICENSE](./LICENSE) for details.
+## 📚 Complete Project Documentation
+
+In addition to this README, comprehensive technical documentation is available:
+- 📕 [**Complete Project Documentation PDF**](./documentation/Beyond_the_Mission_Complete_Documentation.pdf) — A 45+ page publication-ready document with technical tables, coordinate mathematics, and mission logs.
+- 📝 [**Documentation Source Markdown**](./documentation/Beyond_the_Mission_Documentation_Source.md) — Raw markdown source of the complete technical report.
+- 📑 [**Project Documentation Chapters (`docs/`)**](./docs):
+  - [01 — Project Overview](./docs/01-project-overview.md)
+  - [02 — Technology Stack](./docs/02-technology-stack.md)
+  - [03 — Project Architecture](./docs/03-project-architecture.md)
+  - [04 — Features & User Experience](./docs/04-features-and-user-experience.md)
+  - [05 — 3D Assets & Scientific Data](./docs/05-assets-and-scientific-data.md)
+  - [06 — Application Workflows](./docs/06-application-workflows.md)
+  - [07 — Visual Design & Typography](./docs/07-visual-design.md)
+  - [08 — Setup & Installation](./docs/08-setup-and-installation.md)
+  - [09 — Implementation Status](./docs/09-implementation-status.md)
+  - [10 — Future Development Roadmap](./docs/10-future-development.md)
+
+---
+
+## 🔧 Troubleshooting Guide
+
+| Issue | Cause | Resolution |
+| :--- | :--- | :--- |
+| **WebGL Context Lost** | GPU memory saturation or driver timeout | Reload the browser tab. The app includes automatic context-loss recovery in `Experience.tsx`. Ensure hardware acceleration is enabled in browser settings. |
+| **Audio Does Not Play Automatically** | Browser autoplay policy requires user gesture | Click anywhere on the screen or press the Play button to unlock the Web Audio context. |
+| **Port 3000 In Use** | Another process is listening on port 3000 | Run `npm run dev -- -p 3001` to bind Next.js to an alternate port. |
+| **Textures Black on Initial Load** | Asynchronous texture fetch delay | High-resolution 8K/4K planetary textures are preloaded; refresh once to populate browser cache. |
+| **Script Execution Disabled (Windows)** | PowerShell execution policy restriction | Use `npm.cmd` / `npx.cmd` or run PowerShell with `-ExecutionPolicy Bypass`. |
+
+---
+
+## 👥 Team Fortes In Ignoto
+
+Submitted for the **NASA Space Apps Challenge 2026**.
+
+- **Anas Abbasi** — *Project Lead & Full-Stack Developer*
+- **Ali Haider** — *3D Graphics & WebGL Specialist*
+- **Mussawar Khan** — *Data Analyst & Mission Researcher*
+- **Ayan Gulfaraz** — *UI/UX Designer & Frontend Engineer*
+- **Hassaan Naveed Abbasi** — *Systems Architect & QA Engineer*
+- **Abdullah Saleem** — *Content Strategist & Narrator*
+
+---
+
+## 📄 License
+
+This project is licensed under the terms of the [MIT License](./LICENSE).
+
+*NASA imagery, textures, and mission telemetry are courtesy of the National Aeronautics and Space Administration (NASA), Jet Propulsion Laboratory (JPL), and Arizona State University (LROC).*

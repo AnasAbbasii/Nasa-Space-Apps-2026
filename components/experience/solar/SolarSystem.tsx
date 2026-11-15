@@ -489,11 +489,10 @@ function OrbitingMoon({
             distanceFactor={28}
           >
             <div
-              className={`select-none pointer-events-none flex flex-col items-center transition-all duration-300 ease-out ${
-                isHovered
-                  ? 'opacity-100 translate-y-0'
-                  : 'opacity-0 translate-y-1'
-              }`}
+              className={`select-none pointer-events-none flex flex-col items-center transition-all duration-300 ease-out ${isHovered
+                ? 'opacity-100 translate-y-0'
+                : 'opacity-0 translate-y-1'
+                }`}
               style={{
                 willChange: 'opacity, transform',
                 background: 'transparent',
@@ -951,11 +950,10 @@ export default function SolarSystem({
               distanceFactor={28}
             >
               <div
-                className={`select-none pointer-events-none flex flex-col items-center transition-all duration-300 ease-out ${
-                  showLabel
-                    ? 'opacity-100 translate-y-0'
-                    : 'opacity-0 translate-y-1'
-                }`}
+                className={`select-none pointer-events-none flex flex-col items-center transition-all duration-300 ease-out ${showLabel
+                  ? 'opacity-100 translate-y-0'
+                  : 'opacity-0 translate-y-1'
+                  }`}
                 style={{
                   willChange: 'opacity, transform',
                   background: 'transparent',
