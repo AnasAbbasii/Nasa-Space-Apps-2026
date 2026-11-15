@@ -233,12 +233,10 @@ In addition to this README, comprehensive technical documentation is available:
 
 Submitted for the **NASA Space Apps Challenge 2026**.
 
-- **Anas Abbasi** — *Project Lead & Full-Stack Developer*
-- **Ali Haider** — *3D Graphics & WebGL Specialist*
-- **Mussawar Khan** — *Data Analyst & Mission Researcher*
-- **Ayan Gulfaraz** — *UI/UX Designer & Frontend Engineer*
-- **Hassaan Naveed Abbasi** — *Systems Architect & QA Engineer*
-- **Abdullah Saleem** — *Content Strategist & Narrator*
+- **Anas Abbasi**
+- **Ali Haider**
+- **Ali Ahmed**
+- **Hassaan Naveed Abbasi**
 
 ---
 

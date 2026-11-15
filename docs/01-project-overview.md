@@ -67,6 +67,16 @@ The project is fully operational in production. The core engine is built using N
 
 ---
 
+## Team & Contributors
+**Team:** Fortes In Ignoto (*NASA Space Apps Challenge 2026*)
+
+- **Anas Abbasi**
+- **Ali Haider**
+- **Ali Ahmed**
+- **Hassaan Naveed Abbasi**
+
+---
+
 *Related Documentation:*
 - [02 — Technology Stack](file:///docs/02-technology-stack.md)
 - [03 — Project Architecture](file:///docs/03-project-architecture.md)

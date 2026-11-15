@@ -7,10 +7,8 @@
 **Team Members:**  
 - Anas Abbasi
 - Ali Haider
-- Mussawar Khan
-- Ayan Gulfaraz
+- Ali Ahmed
 - Hassaan Naveed Abbasi
-- Abdullah Saleem
 
 **Document Version:** 1.0.0 (Production Release)  
 **Date of Publication:** November 2026  
@@ -60,12 +58,10 @@
 - **Challenge Prompt:** *Abandoned but not Forgotten*
 - **Team Name:** Fortes In Ignoto (*The Brave in the Unknown*)
 - **Core Engineering & Research Team:**
-  - **Anas Abbasi** — Experience Design & Research
-  - **Ali Haider** — Planetary Cartography & Data Systems
-  - **Mussawar Khan** — Narrative Direction & Technical Writing
-  - **Ayan Gulfaraz** — 3D Systems & Visual Engineering
-  - **Hassaan Naveed Abbasi** — Full-Stack Architecture & WebGL Development
-  - **Abdullah Saleem** — Audio Systems & QA Engineering
+  - **Anas Abbasi**
+  - **Ali Haider**
+  - **Ali Ahmed**
+  - **Hassaan Naveed Abbasi**
 
 > *"Humanity may leave its machines behind, but it should never leave their stories forgotten."*
 
