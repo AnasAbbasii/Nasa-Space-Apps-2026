@@ -1,0 +1,4 @@
+[build.environment]
+  # These hold non-secret placeholder/config values (e.g. "default") that match Next.js internals and fail the secrets scan.
+  # Remove VOICESTUDIO_API_KEY from this list once it holds a real key.
+  SECRETS_SCAN_OMIT_KEYS = "VOICESTUDIO_API_KEY,VOICESTUDIO_BASE_URL,VOICESTUDIO_INSTRUCT,VOICESTUDIO_MODE,VOICESTUDIO_MODEL,VOICESTUDIO_PERSONALITY,VOICESTUDIO_VOICE"
