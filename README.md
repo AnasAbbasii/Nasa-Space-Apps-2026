@@ -30,7 +30,7 @@
 
 <br/>
 
-[🚀 Experience Live App](https://beyondthemission.netlify.app/) • [Documentation PDF](./documentation/Beyond_the_Mission_Complete_Documentation.pdf) • [Architecture Guide](./docs/03-project-architecture.md) • [Getting Started](#-getting-started)
+[🚀 Experience Live App](https://beyondthemission.netlify.app/) • [Documentation PDF](./documentation/Beyond_the_Mission_Complete_Documentation.pdf) • [Architecture Guide](./docs/03-project-architecture.md) • [Getting Started](#-getting-started) • [Screenshots](#-website-interface-gallery)
 
 </div>
 
@@ -46,7 +46,7 @@ The official production deployment is hosted live on Netlify with automated cont
 - **Interactive 3D Solar System:** Real-time planetary orbits, camera transitions, and astronomical telemetry.
 - **Dedicated Moon Museum:** Verified landing sites for Apollo 11–17 and Surveyor 3 with laser HUD callouts.
 - **Dedicated Mars Museum:** High-resolution surface models and historical dossiers for 9 robotic missions.
-- **Cinematic Narration:** Full documentary video player with synchronized voice narration and subtitles.
+- **Cinematic Narration:** Full documentary video player with synchronized voice narration, draggable speed slider, and subtitles.
 
 ---
 
@@ -56,17 +56,36 @@ The official production deployment is hosted live on Netlify with automated cont
 
 Across sixty years of interplanetary exploration, humanity has dispatched dozens of orbiters, landers, and rovers into the solar system. When their scientific missions conclude, their batteries drain, or Martian dust covers their solar arrays, these machines remain behind — frozen in the silence of deep space.
 
-This application resurrects their memory through:
+<p align="center">
+  <a href="https://beyondthemission.netlify.app/">
+    <img src="./docs/images/solar-system-overview.jpg" alt="Beyond the Mission — Interactive 3D Solar System Overview" width="95%" />
+  </a>
+  <br/>
+  <em>Real-time 3D Solar System simulation featuring planetary orbital paths, celestial tracking, and gateways to the Moon and Mars museums.</em>
+</p>
+
+### Key Highlights
 1. **Interactive 3D Solar System:** A real-time orbital simulation of the Sun and planets with scientifically calibrated axial tilts, orbital velocities, and smooth camera tracking.
 2. **High-Precision Planetary Museums:** 3D spherical maps of **Earth's Moon** and **Mars**, featuring 16 cataloged historical missions pinned to their exact NASA-verified coordinates.
 3. **Cinematic Storytelling Engine:** Full-screen documentary video experiences featuring authentic NASA archival imagery, voice narration, synchronized progress bars, and single-line sequential captions.
-4. **Spatial HUD Callouts:** Non-occluding laser-style HUD lines and responsive dossiers detailing mission duration, landing coordinates, scientific legacy, and why each artifact remained behind.
+4. **Interactive Playback Speed Slider & Double-Click Skip:** Draggable `0.5x` to `2.0x` speed control and responsive double-click gesture for rapid slide transitions.
+5. **Spatial HUD Callouts:** Non-occluding laser-style HUD lines and responsive dossiers detailing mission duration, landing coordinates, scientific legacy, and why each artifact remained behind.
 
 ---
 
-## 🪐 Cataloged Missions & Machines
+## 🌕 Moon Exploration Museum
 
-### 🌕 The Moon Museum (7 Historic Missions)
+The Moon Museum reconstructs the surface of Earth’s Moon, pinpointing the permanent resting places of the Apollo lunar descent stages and robotic survey craft.
+
+<p align="center">
+  <a href="https://beyondthemission.netlify.app/experience">
+    <img src="./docs/images/moon-museum-view.jpg" alt="Beyond the Mission — Moon Museum with Apollo and Surveyor Landing Sites" width="95%" />
+  </a>
+  <br/>
+  <em>The Moon Museum: High-resolution lunar surface rendering with laser HUD markers for Apollo 11–17 and Surveyor 3, with Earth rising in the background.</em>
+</p>
+
+### Cataloged Lunar Missions (7 Historic Sites)
 | Mission / Machine | Landing Site | Coordinates | Active Dates | Historical Significance |
 | :--- | :--- | :--- | :--- | :--- |
 | **Apollo 11 (Eagle)** | Mare Tranquillitatis | 0.674° N, 23.473° E | Jul 20–21, 1969 | First crewed lunar landing; descent stage left as permanent memorial |
@@ -77,7 +96,21 @@ This application resurrects their memory through:
 | **Apollo 17 (Challenger)**| Taurus-Littrow | 20.191° N, 30.772° E | Dec 11–14, 1972 | Longest crewed surface stay (75 h); Harrison Schmitt scientist-astronaut |
 | **Surveyor 3** | Oceanus Procellarum | 3.016° S, 23.418° W | Apr 20, 1967 – May 4, 1967 | Robotic trenching proving lunar soil could support human weight |
 
-### 🔴 The Mars Museum (9 Historic Missions)
+---
+
+## 🔴 Mars Exploration Museum
+
+The Mars Museum presents an interactive 3D model of the Red Planet, honoring humanity's most ambitious robotic surface explorers across six decades of Martian exploration.
+
+<p align="center">
+  <a href="https://beyondthemission.netlify.app/experience">
+    <img src="./docs/images/mars-museum-view.jpg" alt="Beyond the Mission — Mars Museum with Robotic Landers and Rovers" width="95%" />
+  </a>
+  <br/>
+  <em>The Mars Museum: Interactive 3D Martian sphere featuring robotic landers and rovers from Viking 2 and Phoenix to Curiosity, Spirit, and InSight.</em>
+</p>
+
+### Cataloged Martian Missions (9 Historic Pioneers)
 | Mission / Machine | Landing Site | Coordinates | Active Dates | Historical Significance |
 | :--- | :--- | :--- | :--- | :--- |
 | **Viking 1** | Chryse Planitia | 22.48° N, 312.05° E | Jul 20, 1976 – Nov 11, 1982 | First successful prolonged US Mars surface operations; biological tests |
@@ -92,6 +125,82 @@ This application resurrects their memory through:
 
 ---
 
+## 🛸 Abandoned Equipment: Archival Showcase
+
+Every piece of machinery featured in Beyond the Mission was crafted with human ingenuity and left behind on alien worlds. Below is a selection of the authentic NASA archival photography preserved in the application:
+
+<div align="center">
+
+| Apollo 11 Lunar Module (*Eagle*) | Perseverance Rover & Ingenuity Helicopter | Surveyor 3 Robotic Lunar Lander |
+| :---: | :---: | :---: |
+| <img src="./docs/images/apollo-11-eagle.jpg" alt="Apollo 11 Eagle Lunar Module Descent Stage" width="280" /> | <img src="./docs/images/perseverance-mars.jpg" alt="Perseverance Rover and Ingenuity Helicopter on Mars" width="280" /> | <img src="./docs/images/surveyor-3-lunar.jpg" alt="Surveyor 3 Robotic Lander on Ocean of Storms" width="280" /> |
+| **Mare Tranquillitatis (July 1969)**<br/>*Humanity's first extraterrestrial campsite* | **Jezero Crater (February 2021)**<br/>*Ancient river delta exploration & powered flight* | **Oceanus Procellarum (April 1967)**<br/>*Robotic precursor visited by Apollo 12* |
+
+| Opportunity Rover (*MER-B*) | Curiosity Rover (*MSL*) |
+| :---: | :---: |
+| <img src="./docs/images/opportunity-rover.jpg" alt="Opportunity Rover on Mars" width="430" /> | <img src="./docs/images/curiosity-rover.jpg" alt="Curiosity Rover on Mount Sharp" width="430" /> |
+| **Meridiani Planum (2004–2018)**<br/>*Traversed 45.16 kilometers over 5,111 Martian sols* | **Gale Crater (2012–Present)**<br/>*Mount Sharp ascent & organic chemistry detection* |
+
+</div>
+
+---
+
+## 🎬 Interactive Storytelling & Playback Controls
+
+When exploring any mission dossier, clicking **"Experience Cinematic Story"** initiates an immersive documentary presentation featuring archival photography, spatial audio narration, and interactive controls:
+
+```text
+┌────────────────────────────────────────────────────────────────────────┐
+│  ◄ BACK TO MUSEUM                  APOLLO 11 (EAGLE)            [ ✕ ] │
+│                                                                        │
+│                      [ ARCHIVAL DOCUMENTARY VISUAL ]                   │
+│                                                                        │
+│      "Tranquility Base here. The Eagle has landed."                    │
+│  ────────────────────────────────────────────────────────────────────  │
+│  [ ▶ / ❚❚ ]   ◄◄   01 / 13   ►►   ───●────── 1.0x   🔊 [===|===] 70%  │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Playback Features:
+- **Double-Click Slide Skipping:** Double-clicking anywhere on the slide display area instantly advances to the next slide with smooth cross-fade animation.
+- **Draggable Playback Speed Slider:** A responsive horizontal slider allows fine control over video and narration speed from **`0.5x` to `2.0x`** (in `0.25x` increments) with live numerical indicator.
+- **Synchronized Audio & Subtitles:** Audio streams from the custom Web Audio engine, synchronized with line-by-line subtitles and a progress bar.
+- **Keyboard Shortcuts:** Press <kbd>Space</kbd> to play/pause, <kbd>Esc</kbd> to return to the 3D museum view.
+
+---
+
+## 🖼️ Website Interface Gallery
+
+A visual tour of the primary interfaces available in **Beyond the Mission**:
+
+<div align="center">
+
+### 1. Solar System Orbital Gateway
+<a href="https://beyondthemission.netlify.app/">
+  <img src="./docs/images/solar-system-overview.jpg" alt="Beyond the Mission — Solar System View" width="95%" />
+</a>
+<p><em>Real-time interactive Keplerian orbits with planetary speed scaling, drag-to-orbit controls, and quick navigation HUD.</em></p>
+
+<br/>
+
+### 2. Lunar Surface & Apollo Landing Sites
+<a href="https://beyondthemission.netlify.app/experience">
+  <img src="./docs/images/moon-museum-view.jpg" alt="Beyond the Mission — Moon Museum View" width="95%" />
+</a>
+<p><em>High-precision lunar sphere displaying verified coordinates for Apollo 11–17 and Surveyor 3 with Earth context.</em></p>
+
+<br/>
+
+### 3. Martian Surface & Robotic Explorers
+<a href="https://beyondthemission.netlify.app/experience">
+  <img src="./docs/images/mars-museum-view.jpg" alt="Beyond the Mission — Mars Museum View" width="95%" />
+</a>
+<p><em>Interactive Mars sphere highlighting Viking 2, Phoenix, InSight, Curiosity, and Spirit with responsive mission dossiers.</em></p>
+
+</div>
+
+---
+
 ## 🛠️ Technology Stack
 
 | Layer | Technology | Version | Purpose |
@@ -103,7 +212,7 @@ This application resurrects their memory through:
 | **R3F Utilities** | [@react-three/drei](https://github.com/pmndrs/drei) | `10.7.9` | Camera controls, screen-space Line2 shaders, texture loading |
 | **Styling** | [Tailwind CSS](https://tailwindcss.com/) | `4.3.3` | Utility-first styling with `@tailwindcss/turbopack` |
 | **Language** | [TypeScript](https://www.typescriptlang.org/) | `5.0+` | End-to-end strict type-checking |
-| **Audio Engine** | Web Audio API / Voice Studio | Custom | Local streaming voice synthesis & synchronized audio playback |
+| **Audio Engine** | Web Audio API / Voice Studio | Custom | Streaming voice synthesis & synchronized audio playback |
 | **CI / CD** | GitHub Actions | v4 | Automated linting, type-checking, and production builds |
 
 ---
@@ -137,14 +246,16 @@ appfolder/
 │   │   │   ├── SolarSystem.tsx    # Sun + 6 planets with orbital physics
 │   │   │   └── SolarSidebar.tsx   # Planetary telemetry drawer
 │   │   └── storytelling/
-│   │       └── StorytellingView.tsx# Documentary video player, audio sync, captions
+│   │       └── StorytellingView.tsx# Documentary player with speed slider & double-click
 ├── docs/                          # Architectural and technical documentation chapters
+│   └── images/                    # Project screenshots and archival imagery
 ├── documentation/                 # Full NASA publication PDF (45+ pages) & source
 ├── lib/
 │   ├── audio.ts                   # Web Audio helper and fallback synthesizers
 │   └── voice-studio.ts            # Voice Studio integration with retry logic
 ├── public/
 │   ├── 3dmodels/                  # 3D planet assets and textures
+│   ├── icon.png                   # Official project logo
 │   └── stories/                   # Curated archival photography for all 16 missions
 ├── .env.example                   # Environment configuration template
 ├── package.json                   # Dependencies and npm scripts
@@ -217,8 +328,10 @@ npm run start
   - **Pause-on-Hover:** Hovering over the planet or any machine marker automatically pauses rotation. Moving away smoothly resumes rotation without coordinate jumping.
   - **Marker Interaction:** Click on any glowing HUD marker to open the mission dossier and inspect verified telemetry.
 - **Cinematic Storytelling:** In any mission panel, click **"Experience Cinematic Story"** to launch the full-screen documentary player:
+  - **Double-Click:** Skip current slide immediately to advance the presentation.
+  - **Speed Slider:** Drag horizontal slider from `0.5x` to `2.0x` (step `0.25x`) for variable playback speed.
   - **Spacebar / Click:** Pause or resume narration and slide progression.
-  - **Progress Bar:** Real-time red tracking bar at the bottom edge synchronized with the voice narration.
+  - **Progress Bar:** Real-time tracking bar synchronized with the voice narration.
   - **Captions:** Clean, single-line sequential captions updating sentence by sentence.
   - **Escape / Close Button:** Return smoothly to the 3D museum view.
 
