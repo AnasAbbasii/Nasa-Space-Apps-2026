@@ -31,6 +31,9 @@ interface StorytellingViewProps {
  *    - Clicking anywhere on screen cleanly pauses/resumes audio and visuals.
  *    - Return button cleanly stops audio and restores 3D scene without page reload.
  */
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
+type PlaybackSpeed = (typeof SPEED_OPTIONS)[number];
+
 export default function StorytellingView({ machine, onClose }: StorytellingViewProps) {
   // Synthesize or retrieve verified story from master database
   const story = useMemo(() => {
@@ -61,6 +64,15 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   const crossfadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideElapsedMsRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(isPlaying);
+
+  // Playback speed state (0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x)
+  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
+  const playbackSpeedRef = useRef<number>(1);
+
+  // Double-click / double-tap detection refs
+  const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTouchTimeRef = useRef<number>(0);
 
   useEffect(() => {
     isPlayingRef.current = isPlaying;
@@ -160,6 +172,10 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
 
   // Stop audio and exit cleanly back to 3D museum
   const handleExit = useCallback(() => {
+    if (clickTimeoutRef.current) {
+      clearTimeout(clickTimeoutRef.current);
+      clickTimeoutRef.current = null;
+    }
     if (crossfadeTimerRef.current) {
       clearTimeout(crossfadeTimerRef.current);
     }
@@ -172,6 +188,29 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     onClose();
   }, [onClose]);
 
+  // Adjust playback speed (0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x)
+  const handleSpeedChange = useCallback((newSpeed: PlaybackSpeed) => {
+    setPlaybackSpeed(newSpeed);
+    playbackSpeedRef.current = newSpeed;
+    setIsSpeedMenuOpen(false);
+
+    if (audioRef.current) {
+      audioRef.current.playbackRate = newSpeed;
+    }
+  }, []);
+
+  // Close speed menu when clicking outside
+  useEffect(() => {
+    if (!isSpeedMenuOpen) return;
+    const handleWindowClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('[data-speed-control="true"]')) {
+        setIsSpeedMenuOpen(false);
+      }
+    };
+    window.addEventListener('click', handleWindowClick);
+    return () => window.removeEventListener('click', handleWindowClick);
+  }, [isSpeedMenuOpen]);
+
   // Toggle Play / Pause anywhere on click - preserves exact audio & progress position
   const handleTogglePlayPause = useCallback(() => {
     if (isFinished) return;
@@ -179,6 +218,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       const next = !prev;
       const audio = audioRef.current;
       if (audio && audio.src && audioLoadedRef.current) {
+        audio.playbackRate = playbackSpeedRef.current;
         if (next) {
           audio.play().catch(() => {});
         } else {
@@ -188,6 +228,74 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       return next;
     });
   }, [isFinished]);
+
+  // Single-click handler: debounced slightly (240ms) so double-click cancels play/pause toggle
+  const handleContainerClick = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button, [data-interactive="true"]')) {
+        return;
+      }
+
+      if (isSpeedMenuOpen) {
+        setIsSpeedMenuOpen(false);
+        return;
+      }
+
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+
+      clickTimeoutRef.current = setTimeout(() => {
+        handleTogglePlayPause();
+        clickTimeoutRef.current = null;
+      }, 240);
+    },
+    [handleTogglePlayPause, isSpeedMenuOpen]
+  );
+
+  // Double-click handler: immediately skips current slide with normal transition
+  const handleContainerDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      if ((e.target as HTMLElement).closest('button, [data-interactive="true"]')) {
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (clickTimeoutRef.current) {
+        clearTimeout(clickTimeoutRef.current);
+        clickTimeoutRef.current = null;
+      }
+
+      handleNext();
+    },
+    [handleNext]
+  );
+
+  // Touch screen double-tap detection for mobile devices (prevents unwanted zoom)
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if ((e.target as HTMLElement).closest('button, [data-interactive="true"]')) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastTouchTimeRef.current < 320 && now - lastTouchTimeRef.current > 40) {
+        e.preventDefault();
+        if (clickTimeoutRef.current) {
+          clearTimeout(clickTimeoutRef.current);
+          clickTimeoutRef.current = null;
+        }
+        handleNext();
+        lastTouchTimeRef.current = 0;
+      } else {
+        lastTouchTimeRef.current = now;
+      }
+    },
+    [handleNext]
+  );
 
   // Audio setup: runs ONLY when slideIndex changes. NEVER resets currentTime on play/pause!
   useEffect(() => {
@@ -210,6 +318,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       audio.oncanplay = () => {
         if (isCancelled) return;
         audioLoadedRef.current = true;
+        audio.playbackRate = playbackSpeedRef.current;
         if (isPlayingRef.current) {
           audio.play().catch(() => {});
         }
@@ -263,7 +372,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
         if (sIdx === -1) sIdx = sentenceThresholds.length - 1;
         setSentenceIndex(Math.max(0, sIdx));
       } else {
-        slideElapsedMsRef.current += intervalMs;
+        slideElapsedMsRef.current += intervalMs * playbackSpeedRef.current;
         const ratio = Math.min(1, slideElapsedMsRef.current / fallbackDurationMs);
         setPlaybackProgress(ratio * 100);
 
@@ -286,20 +395,28 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        handleExit();
+        if (isSpeedMenuOpen) {
+          setIsSpeedMenuOpen(false);
+        } else {
+          handleExit();
+        }
       } else if (e.code === 'Space') {
         e.preventDefault();
         handleTogglePlayPause();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleNext();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleExit, handleTogglePlayPause]);
+  }, [handleExit, handleNext, handleTogglePlayPause, isSpeedMenuOpen]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
+      if (clickTimeoutRef.current) clearTimeout(clickTimeoutRef.current);
       if (crossfadeTimerRef.current) clearTimeout(crossfadeTimerRef.current);
       if (audioRef.current) {
         audioRef.current.pause();
@@ -341,11 +458,14 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       role="dialog"
       aria-modal="true"
       aria-label={`${story.machineName} Story`}
-      onClick={handleTogglePlayPause}
+      onClick={handleContainerClick}
+      onDoubleClick={handleContainerDoubleClick}
+      onTouchEnd={handleTouchEnd}
       data-cursor="focus"
       className="fixed inset-0 z-50 w-screen h-[100dvh] overflow-hidden bg-black select-none cursor-default"
       style={{
         fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+        touchAction: 'manipulation',
       }}
     >
       {/* ============================================================ */}
@@ -395,7 +515,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
                 }}
                 className="w-full h-full object-cover will-change-transform"
                 style={{
-                  animation: `${kenBurnsAnim} 24s ease-out forwards`,
+                  animation: `${kenBurnsAnim} ${Math.max(6, Math.round(24 / playbackSpeed))}s ease-out forwards`,
                   transformOrigin: kenBurnsOrigin,
                   animationPlayState: isPlaying ? 'running' : 'paused',
                 }}
@@ -415,15 +535,16 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       )}
 
       {/* ============================================================ */}
-      {/* 2. TOP-LEFT RETURN BUTTON (THE ONLY PERSISTENT VISIBLE CONTROL) */}
+      {/* 2. TOP-LEFT CONTROLS (RETURN BUTTON & PLAYBACK SPEED SELECTOR) */}
       {/* ============================================================ */}
       <div
-        className="absolute z-30 pointer-events-auto"
+        className="absolute z-30 pointer-events-auto flex items-center gap-2 sm:gap-2.5"
         style={{
           top: 'max(1.5rem, env(safe-area-inset-top, 1.5rem))',
           left: 'max(1.5rem, env(safe-area-inset-left, 1.5rem))',
         }}
       >
+        {/* RETURN BUTTON */}
         <button
           type="button"
           onClick={(e) => {
@@ -432,7 +553,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
           }}
           data-cursor="focus"
           aria-label="Return to Museum"
-          className="group inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs sm:text-[13px] tracking-[0.16em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+          className="group inline-flex items-center gap-2 sm:gap-2.5 px-3.5 sm:px-4 py-2 rounded-full text-xs sm:text-[13px] tracking-[0.16em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
           style={{
             background: 'rgba(0, 0, 0, 0.40)',
             backdropFilter: 'blur(16px)',
@@ -446,6 +567,87 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
           </svg>
           <span>RETURN</span>
         </button>
+
+        {/* PLAYBACK SPEED ADJUSTER */}
+        <div className="relative" data-speed-control="true" data-interactive="true">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsSpeedMenuOpen((prev) => !prev);
+            }}
+            data-cursor="focus"
+            aria-haspopup="true"
+            aria-expanded={isSpeedMenuOpen}
+            aria-label={`Playback speed: ${playbackSpeed}x`}
+            className="group inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full text-xs sm:text-[13px] tracking-[0.14em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+            style={{
+              background: isSpeedMenuOpen ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.40)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: isSpeedMenuOpen
+                ? '1px solid rgba(239, 68, 68, 0.55)'
+                : '1px solid rgba(255, 255, 255, 0.12)',
+              fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+            }}
+          >
+            <span className="text-white/50 text-[10px] tracking-wider font-mono">SPEED</span>
+            <span className="font-semibold text-red-400">{playbackSpeed}x</span>
+            <svg
+              className={`w-3 h-3 text-white/60 transition-transform duration-200 ${
+                isSpeedMenuOpen ? 'rotate-180 text-white' : ''
+              }`}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
+
+          {/* COMPACT SPEED DROPDOWN MENU */}
+          {isSpeedMenuOpen && (
+            <div
+              role="menu"
+              aria-label="Playback speed options"
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+              className="absolute left-0 mt-2 py-1.5 w-32 rounded-xl border border-white/15 bg-black/90 backdrop-blur-xl shadow-2xl z-50 flex flex-col gap-0.5 animate-fade-in"
+              style={{
+                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+              }}
+            >
+              <div className="px-3 py-1 text-[10px] tracking-[0.2em] uppercase text-white/40 font-mono border-b border-white/10 mb-1">
+                Speed
+              </div>
+              {SPEED_OPTIONS.map((speed) => (
+                <button
+                  key={speed}
+                  type="button"
+                  role="menuitem"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleSpeedChange(speed);
+                  }}
+                  className={`px-3 py-1.5 text-xs text-left tracking-wider font-mono flex items-center justify-between transition-colors cursor-pointer ${
+                    playbackSpeed === speed
+                      ? 'text-red-400 bg-white/10 font-bold'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <span>{speed}x</span>
+                  {speed === 1 && (
+                    <span className="text-[10px] text-white/40 tracking-normal font-sans">Def</span>
+                  )}
+                  {playbackSpeed === speed && (
+                    <span className="text-red-400 text-xs font-bold">✓</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ============================================================ */}
