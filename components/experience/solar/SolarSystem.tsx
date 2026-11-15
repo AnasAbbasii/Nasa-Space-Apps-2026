@@ -2,7 +2,7 @@
 
 import React, { useRef, useMemo, Suspense, Component, ReactNode, useState, useCallback, useEffect } from 'react';
 import * as THREE from 'three';
-import { useFrame, useLoader, useThree } from '@react-three/fiber';
+import { useFrame, useLoader, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useTexture, Html } from '@react-three/drei';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { CELESTIAL_BODIES } from '@/lib/solar-system';
@@ -60,20 +60,21 @@ interface SolarSystemProps {
 }
 
 // Model renderer for FBX planetary models
-function FbxPlanetModel({
+function TexturedFbxPlanetModel({
   fbxPath,
   texturePath,
   radius,
   emissive = false,
 }: {
   fbxPath: string;
-  texturePath?: string;
+  texturePath: string;
   radius: number;
   emissive?: boolean;
 }) {
   const fbx = useLoader(FBXLoader, fbxPath);
-  const texture = texturePath ? useTexture(texturePath) : null;
-  if (texture) texture.colorSpace = THREE.SRGBColorSpace;
+  const texture = useTexture(texturePath, (t) => {
+    (t as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
+  });
 
   const model = useMemo(() => {
     const clone = fbx.clone(true);
@@ -90,24 +91,22 @@ function FbxPlanetModel({
     scaledBox.getCenter(center);
     clone.position.sub(center);
 
-    if (texture) {
-      clone.traverse((child) => {
-        if ((child as THREE.Mesh).isMesh) {
-          const mesh = child as THREE.Mesh;
-          // Bypass raycasting on high-poly meshes to protect 60fps interaction loop
-          mesh.raycast = () => {};
-          if (emissive) {
-            mesh.material = new THREE.MeshBasicMaterial({ map: texture });
-          } else {
-            mesh.material = new THREE.MeshStandardMaterial({
-              map: texture,
-              roughness: 0.85,
-              metalness: 0.05,
-            });
-          }
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        // Bypass raycasting on high-poly meshes to protect 60fps interaction loop
+        mesh.raycast = () => {};
+        if (emissive) {
+          mesh.material = new THREE.MeshBasicMaterial({ map: texture });
+        } else {
+          mesh.material = new THREE.MeshStandardMaterial({
+            map: texture,
+            roughness: 0.85,
+            metalness: 0.05,
+          });
         }
-      });
-    }
+      }
+    });
     return clone;
   }, [fbx, texture, radius, emissive]);
 
@@ -130,6 +129,128 @@ function FbxPlanetModel({
   return <primitive object={model} />;
 }
 
+function PlainFbxPlanetModel({
+  fbxPath,
+  radius,
+}: {
+  fbxPath: string;
+  radius: number;
+}) {
+  const fbx = useLoader(FBXLoader, fbxPath);
+
+  const model = useMemo(() => {
+    const clone = fbx.clone(true);
+    const box = new THREE.Box3().setFromObject(clone);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const scaleFactor = maxDim > 0 ? (radius * 2) / maxDim : 1;
+    clone.scale.setScalar(scaleFactor);
+
+    const scaledBox = new THREE.Box3().setFromObject(clone);
+    const center = new THREE.Vector3();
+    scaledBox.getCenter(center);
+    clone.position.sub(center);
+
+    clone.traverse((child) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh;
+        mesh.raycast = () => {};
+      }
+    });
+    return clone;
+  }, [fbx, radius]);
+
+  useEffect(() => {
+    return () => {
+      model.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((m) => m.dispose());
+          } else if (mesh.material) {
+            mesh.material.dispose();
+          }
+        }
+      });
+    };
+  }, [model]);
+
+  return <primitive object={model} />;
+}
+
+function FbxPlanetModel({
+  fbxPath,
+  texturePath,
+  radius,
+  emissive = false,
+}: {
+  fbxPath: string;
+  texturePath?: string;
+  radius: number;
+  emissive?: boolean;
+}) {
+  if (texturePath) {
+    return <TexturedFbxPlanetModel fbxPath={fbxPath} texturePath={texturePath} radius={radius} emissive={emissive} />;
+  }
+  return <PlainFbxPlanetModel fbxPath={fbxPath} radius={radius} />;
+}
+
+function TexturedFallbackSphere({
+  radius,
+  texturePath,
+  emissive = false,
+}: {
+  radius: number;
+  texturePath: string;
+  emissive?: boolean;
+}) {
+  const texture = useTexture(texturePath, (t) => {
+    (t as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
+  });
+
+  return (
+    <mesh raycast={() => null}>
+      <sphereGeometry args={[radius, 48, 48]} />
+      {emissive ? (
+        <meshBasicMaterial map={texture} color="#ffffff" />
+      ) : (
+        <meshStandardMaterial
+          map={texture}
+          color="#ffffff"
+          roughness={0.85}
+          metalness={0.05}
+        />
+      )}
+    </mesh>
+  );
+}
+
+function ColoredFallbackSphere({
+  radius,
+  color,
+  emissive = false,
+}: {
+  radius: number;
+  color: string;
+  emissive?: boolean;
+}) {
+  return (
+    <mesh raycast={() => null}>
+      <sphereGeometry args={[radius, 48, 48]} />
+      {emissive ? (
+        <meshBasicMaterial color={color} />
+      ) : (
+        <meshStandardMaterial
+          color={color}
+          roughness={0.85}
+          metalness={0.05}
+        />
+      )}
+    </mesh>
+  );
+}
+
 // Fallback sphere when model is loading or streaming
 function FallbackSphere({
   radius,
@@ -142,30 +263,17 @@ function FallbackSphere({
   texturePath?: string | null;
   emissive?: boolean;
 }) {
-  const texture = texturePath ? useTexture(texturePath) : null;
-  if (texture) texture.colorSpace = THREE.SRGBColorSpace;
-
-  return (
-    <mesh raycast={() => null}>
-      <sphereGeometry args={[radius, 48, 48]} />
-      {emissive ? (
-        <meshBasicMaterial map={texture ?? undefined} color={texture ? '#ffffff' : color} />
-      ) : (
-        <meshStandardMaterial
-          map={texture ?? undefined}
-          color={texture ? '#ffffff' : color}
-          roughness={0.85}
-          metalness={0.05}
-        />
-      )}
-    </mesh>
-  );
+  if (texturePath) {
+    return <TexturedFallbackSphere radius={radius} texturePath={texturePath} emissive={emissive} />;
+  }
+  return <ColoredFallbackSphere radius={radius} color={color} emissive={emissive} />;
 }
 
 // Saturn's authentic ring disc
 function SaturnRings({ innerRadius = 1.3, outerRadius = 2.2 }: { innerRadius?: number; outerRadius?: number }) {
-  const ringTexture = useTexture('/3dmodels/saturn/textures/Uv1_saturn2_diff.png');
-  ringTexture.colorSpace = THREE.SRGBColorSpace;
+  const ringTexture = useTexture('/3dmodels/saturn/textures/Uv1_saturn2_diff.png', (t) => {
+    (t as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
+  });
 
   return (
     <mesh rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
@@ -212,12 +320,14 @@ function OrbitingMoon({
   const moonHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const moonSpeedFactorRef = useRef(1.0);
   const { gl } = useThree();
-  const moonTexture = useTexture('/textures/moon_2k.jpg');
-  moonTexture.colorSpace = THREE.SRGBColorSpace;
+  const moonTexture = useTexture('/textures/moon_2k.jpg', (t) => {
+    (t as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
+  });
+
   const moonRadius = 0.20;
   const isMoonMuseum = activeMuseum === 'moon';
 
-  const handleMoonPointerOver = useCallback((e: any) => {
+  const handleMoonPointerOver = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     if (moonHoverTimeoutRef.current) {
       clearTimeout(moonHoverTimeoutRef.current);
@@ -229,7 +339,7 @@ function OrbitingMoon({
     }
   }, [isMoonMuseum]);
 
-  const handleMoonPointerOut = useCallback((e: any) => {
+  const handleMoonPointerOut = useCallback((e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation();
     if (moonHoverTimeoutRef.current) {
       clearTimeout(moonHoverTimeoutRef.current);
@@ -517,7 +627,9 @@ export default function SolarSystem({
   isInteracting = false,
 }: SolarSystemProps) {
   // Orbital angles ref for each celestial body
-  const anglesRef = useRef<Map<string, number>>(new Map());
+  const anglesRef = useRef<Map<string, number>>(
+    new Map(CELESTIAL_BODIES.map((b, idx) => [b.id, idx * 1.1]))
+  );
   const planetGroupsRef = useRef<Map<string, THREE.Group>>(new Map());
   const earthBodyRef = useRef<THREE.Group>(null);
   const marsSpeedFactorRef = useRef(1.0);
@@ -576,15 +688,6 @@ export default function SolarSystem({
       }
     };
   }, [gl]);
-
-  // Initialize initial orbital angles with scientific spacing
-  useMemo(() => {
-    CELESTIAL_BODIES.forEach((b, idx) => {
-      if (!anglesRef.current.has(b.id)) {
-        anglesRef.current.set(b.id, idx * 1.1);
-      }
-    });
-  }, []);
 
   useFrame((_state, delta) => {
     CELESTIAL_BODIES.forEach((b) => {

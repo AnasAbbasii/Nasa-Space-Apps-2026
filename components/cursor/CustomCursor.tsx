@@ -1,28 +1,35 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { cursorStore, CursorType } from '@/lib/cursor-store';
+
+function subscribeFinePointer(callback: () => void) {
+  if (typeof window === 'undefined') return () => {};
+  const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
+  mediaQuery.addEventListener('change', callback);
+  return () => mediaQuery.removeEventListener('change', callback);
+}
+
+function getFinePointerSnapshot() {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
+function getFinePointerServerSnapshot() {
+  return false;
+}
 
 export default function CustomCursor() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cursorType, setCursorType] = useState<CursorType>('default');
   const [isDown, setIsDown] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-  const [isFinePointer, setIsFinePointer] = useState(false);
+  const isFinePointer = useSyncExternalStore(subscribeFinePointer, getFinePointerSnapshot, getFinePointerServerSnapshot);
 
   const isVisibleRef = useRef(false);
   const cursorTypeRef = useRef<CursorType>('default');
 
   useEffect(() => {
-    // Check if device supports fine precision pointer (mouse/trackpad, not touch)
-    const mediaQuery = window.matchMedia('(hover: hover) and (pointer: fine)');
-    setIsFinePointer(mediaQuery.matches);
-
-    const onMediaChange = (e: MediaQueryListEvent) => {
-      setIsFinePointer(e.matches);
-    };
-    mediaQuery.addEventListener('change', onMediaChange);
-
     const updateCursorType = (type: CursorType) => {
       if (cursorTypeRef.current !== type) {
         cursorTypeRef.current = type;
@@ -139,7 +146,6 @@ export default function CustomCursor() {
       if (rafId !== null) {
         cancelAnimationFrame(rafId);
       }
-      mediaQuery.removeEventListener('change', onMediaChange);
       unsubscribe();
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerdown', onPointerDown);

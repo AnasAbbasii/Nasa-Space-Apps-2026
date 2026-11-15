@@ -9,7 +9,6 @@ interface SolarSidebarProps {
   selectedBody: CelestialBody | null;
   onSelectBody: (body: CelestialBody | null) => void;
   onEnterMarsMuseum?: () => void;
-  onEnterMoonMuseum?: () => void;
   isPlaying: boolean;
   onTogglePlay: () => void;
   onReset: () => void;
@@ -29,7 +28,6 @@ export default function SolarSidebar({
   selectedBody,
   onSelectBody,
   onEnterMarsMuseum,
-  onEnterMoonMuseum,
   isPlaying,
   onTogglePlay,
   onReset,

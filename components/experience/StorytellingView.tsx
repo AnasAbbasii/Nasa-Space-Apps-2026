@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import Image from 'next/image';
 import type { LunarMachine } from '@/lib/lunar-machines';
 import type { MarsMachine } from '@/lib/mars-machines';
 import { formatCoordinates } from '@/lib/moon-coords';
@@ -50,25 +51,29 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   const [slideIndex, setSlideIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [isFinished, setIsFinished] = useState(false);
-  const [audioLoaded, setAudioLoaded] = useState(false);
 
   // Crossfade image state (dual buffer for zero black frames)
   const [prevSlide, setPrevSlide] = useState<StorySlide | null>(null);
   const [isCrossfading, setIsCrossfading] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioLoadedRef = useRef<boolean>(false);
   const crossfadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const slideElapsedMsRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(isPlaying);
-  isPlayingRef.current = isPlaying;
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   const totalSlides = story.slides.length;
   const currentSlide: StorySlide | undefined = story.slides[slideIndex];
+  const currentSlideCaption = currentSlide?.caption;
 
   // Split narration paragraph into distinct sentences without breaking on decimals or abbreviations
   const sentences = useMemo(() => {
-    if (!currentSlide?.caption) return [];
-    const text = currentSlide.caption.trim();
+    if (!currentSlideCaption) return [];
+    const text = currentSlideCaption.trim();
     // Protect decimal numbers like 10.6 and abbreviations like U.S.
     const clean = text
       .replace(/(\d+)\.(\d+)/g, '$1__DECIMAL__$2')
@@ -85,7 +90,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
           .trim()
       )
       .filter(Boolean);
-  }, [currentSlide?.caption]);
+  }, [currentSlideCaption]);
 
   // Cumulative word ratios to trigger sentence transitions in sync with voice
   const sentenceThresholds = useMemo(() => {
@@ -136,7 +141,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     setSlideIndex(newIndex);
     setSentenceIndex(0);
     setPlaybackProgress(0);
-    setAudioLoaded(false);
+    audioLoadedRef.current = false;
     setIsFinished(false);
     slideElapsedMsRef.current = 0;
   }, [slideIndex, story.slides, totalSlides]);
@@ -173,7 +178,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     setIsPlaying((prev) => {
       const next = !prev;
       const audio = audioRef.current;
-      if (audio && audio.src && audioLoaded) {
+      if (audio && audio.src && audioLoadedRef.current) {
         if (next) {
           audio.play().catch(() => {});
         } else {
@@ -182,7 +187,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       }
       return next;
     });
-  }, [audioLoaded, isFinished]);
+  }, [isFinished]);
 
   // Audio setup: runs ONLY when slideIndex changes. NEVER resets currentTime on play/pause!
   useEffect(() => {
@@ -195,6 +200,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     }
     const audio = audioRef.current;
     const audioUrl: string | null = currentSlide?.audioSrc || null;
+    audioLoadedRef.current = false;
 
     if (audioUrl) {
       audio.pause();
@@ -203,7 +209,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
 
       audio.oncanplay = () => {
         if (isCancelled) return;
-        setAudioLoaded(true);
+        audioLoadedRef.current = true;
         if (isPlayingRef.current) {
           audio.play().catch(() => {});
         }
@@ -221,12 +227,12 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
 
       audio.onerror = () => {
         if (isCancelled) return;
-        setAudioLoaded(false);
+        audioLoadedRef.current = false;
       };
     } else {
       audio.pause();
       audio.src = '';
-      setAudioLoaded(false);
+      audioLoadedRef.current = false;
     }
 
     return () => {
@@ -247,7 +253,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     const timer = setInterval(() => {
       const audio = audioRef.current;
       const hasActiveAudio =
-        audioLoaded && audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0;
+        audioLoadedRef.current && audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0;
 
       if (hasActiveAudio) {
         const ratio = Math.min(1, Math.max(0, audio.currentTime / audio.duration));
@@ -273,7 +279,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [audioLoaded, fallbackDurationMs, handleNext, isFinished, isPlaying, sentenceThresholds]);
+  }, [fallbackDurationMs, handleNext, isFinished, isPlaying, sentenceThresholds]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -307,11 +313,11 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   useEffect(() => {
     if (slideIndex + 1 < totalSlides) {
       const nextSlide = story.slides[slideIndex + 1];
-      if (nextSlide?.image) {
-        const img = new Image();
+      if (nextSlide?.image && typeof window !== 'undefined') {
+        const img = new window.Image();
         img.src = nextSlide.image;
       }
-      if (nextSlide?.audioSrc) {
+      if (nextSlide?.audioSrc && typeof window !== 'undefined') {
         const nextAudio = new Audio();
         nextAudio.preload = 'auto';
         nextAudio.src = nextSlide.audioSrc;
@@ -353,9 +359,12 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
               key={`prev-${prevSlide.id}`}
               className="absolute inset-0 w-full h-full transition-opacity duration-700 ease-in-out opacity-0 z-0"
             >
-              <img
+              <Image
                 src={prevSlide.image}
                 alt=""
+                fill
+                unoptimized
+                sizes="100vw"
                 className="w-full h-full object-cover"
                 style={{ transform: 'scale(1.05)' }}
               />
@@ -370,11 +379,15 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
                 isCrossfading ? 'opacity-90' : 'opacity-100'
               } z-1`}
             >
-              <img
+              <Image
                 src={currentSlide.image}
                 alt={currentSlide.title}
+                fill
+                unoptimized
+                priority
+                sizes="100vw"
                 onError={(e) => {
-                  const target = e.currentTarget;
+                  const target = e.currentTarget as HTMLImageElement;
                   const fallback = story.body === 'mars' ? '/textures/mars_surface.jpg' : '/stories/apollo-17/slide-5.jpg';
                   if (target.src !== fallback) {
                     target.src = fallback;

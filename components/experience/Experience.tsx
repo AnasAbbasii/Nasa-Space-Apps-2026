@@ -27,7 +27,6 @@ import SolarSidebar from './solar/SolarSidebar';
 type MuseumMode = 'moon' | 'mars' | null;
 
 // Reusable scratch vectors to eliminate per-frame GC allocations
-const _targetCam = new THREE.Vector3();
 const _camToPlanet = new THREE.Vector3();
 const _camRight = new THREE.Vector3();
 const _desiredTarget = new THREE.Vector3();
@@ -204,25 +203,20 @@ function FrameReadyReporter({
 }
 
 function ExperienceLoader({ isBusy }: { isBusy: boolean }) {
-  const [visible, setVisible] = useState(false);
+  const [showTimed, setShowTimed] = useState(false);
 
   useEffect(() => {
-    let showTimer: ReturnType<typeof setTimeout>;
-    let safetyTimer: ReturnType<typeof setTimeout>;
+    if (!isBusy) return;
 
-    if (isBusy) {
-      // 75ms debounce prevents flickering on instant cache hits
-      showTimer = setTimeout(() => {
-        setVisible(true);
-      }, 75);
+    // 75ms debounce prevents flickering on instant cache hits
+    const showTimer = setTimeout(() => {
+      setShowTimed(true);
+    }, 75);
 
-      // Safety timeout: never allow loader to remain stuck indefinitely
-      safetyTimer = setTimeout(() => {
-        setVisible(false);
-      }, 8000);
-    } else {
-      setVisible(false);
-    }
+    // Safety timeout: never allow loader to remain stuck indefinitely
+    const safetyTimer = setTimeout(() => {
+      setShowTimed(false);
+    }, 8000);
 
     return () => {
       clearTimeout(showTimer);
@@ -230,7 +224,7 @@ function ExperienceLoader({ isBusy }: { isBusy: boolean }) {
     };
   }, [isBusy]);
 
-  if (!visible) return null;
+  if (!isBusy || !showTimed) return null;
 
   return (
     <div
@@ -335,7 +329,6 @@ export default function Experience() {
             selectedBody={selectedBody}
             onSelectBody={handleSelectBody}
             onEnterMarsMuseum={handleEnterMarsMuseum}
-            onEnterMoonMuseum={handleEnterMoonMuseum}
             isPlaying={isPlaying}
             onTogglePlay={() => setIsPlaying(!isPlaying)}
             onReset={handleReset}

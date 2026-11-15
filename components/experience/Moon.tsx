@@ -19,8 +19,9 @@ interface MoonProps {
 }
 
 function MoonSphere() {
-  const moonTexture = useTexture('/textures/moon_2k.jpg');
-  moonTexture.colorSpace = THREE.SRGBColorSpace;
+  const moonTexture = useTexture('/textures/moon_2k.jpg', (texture) => {
+    (texture as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
+  });
 
   return (
     <mesh receiveShadow castShadow>

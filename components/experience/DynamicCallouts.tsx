@@ -86,7 +86,6 @@ export default function DynamicCallouts({
 }: DynamicCalloutsProps) {
   const { size } = useThree();
 
-  const entriesRef = useRef<Map<string, CalloutEntry>>(new Map());
   const localRootRef = useRef<THREE.Group>(null);
   const hysteresisMapRef = useRef<Map<string, boolean>>(new Map());
   const candidatesRef = useRef<LayoutCandidate[]>([]);
@@ -132,11 +131,10 @@ export default function DynamicCallouts({
         currentY: initialY,
         currentOpacity: 0,
         currentSide: initialSide,
-        groupRef: React.createRef<THREE.Group>(),
-        htmlDivRef: React.createRef<HTMLDivElement>(),
+        groupRef: { current: null },
+        htmlDivRef: { current: null },
       });
     }
-    entriesRef.current = map;
     return map;
   }, [machines, size.width, size.height, radius]);
 

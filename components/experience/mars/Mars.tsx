@@ -19,8 +19,9 @@ interface MarsProps {
 }
 
 function MarsSphere() {
-  const marsTexture = useTexture('/textures/mars_surface.jpg');
-  marsTexture.colorSpace = THREE.SRGBColorSpace;
+  const marsTexture = useTexture('/textures/mars_surface.jpg', (texture) => {
+    (texture as THREE.Texture).colorSpace = THREE.SRGBColorSpace;
+  });
 
   return (
     <mesh receiveShadow castShadow>

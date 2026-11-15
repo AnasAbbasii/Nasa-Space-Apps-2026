@@ -83,6 +83,13 @@ export default function PlanetInfoPanel({
                 {body.name}
               </h2>
             </div>
+            <button
+              onClick={onClose}
+              aria-label="Close dossier"
+              className="text-white/40 hover:text-white transition-colors p-1 -mr-1 text-sm leading-none focus:outline-none cursor-pointer"
+            >
+              ✕
+            </button>
           </div>
 
           {/* Scientific Summary */}
