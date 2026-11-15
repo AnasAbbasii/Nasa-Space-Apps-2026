@@ -1,14 +1,15 @@
-# Beyond the Mission — The Museum of Forgotten Machines
-
 <div align="center">
 
-[![NASA Space Apps Challenge 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026%20Global%20Challenge-blue.svg?style=for-the-badge&logo=nasa)](https://www.spaceappschallenge.org/)
-[![Next.js 16](https://img.shields.io/badge/Next.js-16.4.6-black.svg?style=for-the-badge&logo=next.js)](https://nextjs.org/)
-[![React 19](https://img.shields.io/badge/React-19.3.0-61DAFB.svg?style=for-the-badge&logo=react)](https://react.dev/)
-[![Three.js](https://img.shields.io/badge/Three.js-0.187.0-black.svg?style=for-the-badge&logo=three.js)](https://threejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/AnasAbbasii/Nasa-Space-Apps-2026/ci.yml?branch=main&style=for-the-badge&label=CI%20Build)](https://github.com/AnasAbbasii/Nasa-Space-Apps-2026/actions)
+<a href="https://beyondthemission.netlify.app/">
+  <img src="./public/icon.png" alt="Beyond the Mission Logo" width="130" height="130" />
+</a>
+
+# Beyond the Mission
+
+**NASA Space Apps Challenge 2026 — Global Hackathon Submission**  
+*Challenge Track: Abandoned but not Forgotten*
+
+### [🚀 Visit Beyond the Mission](https://beyondthemission.netlify.app/)
 
 <p align="center">
   <strong>An immersive, cinematic 3D web museum honoring humanity’s robotic pioneers and abandoned exploration machines on the Moon and Mars.</strong>
@@ -18,9 +19,34 @@
   <em>"Humanity may leave its machines behind, but it should never leave their stories forgotten."</em>
 </p>
 
-[Explore Online](https://github.com/AnasAbbasii/Nasa-Space-Apps-2026) • [Documentation PDF](./documentation/Beyond_the_Mission_Complete_Documentation.pdf) • [Architecture Guide](./docs/03-project-architecture.md) • [Getting Started](#-getting-started)
+[![Live Website](https://img.shields.io/badge/Live%20Website-beyondthemission.netlify.app-00C7B7.svg?style=for-the-badge&logo=netlify)](https://beyondthemission.netlify.app/)
+[![NASA Space Apps Challenge 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026%20Global%20Challenge-blue.svg?style=for-the-badge&logo=nasa)](https://www.spaceappschallenge.org/)
+[![Next.js 16](https://img.shields.io/badge/Next.js-16.4.6-black.svg?style=for-the-badge&logo=next.js)](https://nextjs.org/)
+[![React 19](https://img.shields.io/badge/React-19.3.0-61DAFB.svg?style=for-the-badge&logo=react)](https://react.dev/)
+[![Three.js](https://img.shields.io/badge/Three.js-0.187.0-black.svg?style=for-the-badge&logo=three.js)](https://threejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](./LICENSE)
+[![CI Build](https://img.shields.io/github/actions/workflow/status/AnasAbbasii/Nasa-Space-Apps-2026/ci.yml?branch=main&style=for-the-badge&label=CI%20Build)](https://github.com/AnasAbbasii/Nasa-Space-Apps-2026/actions)
+
+<br/>
+
+[🚀 Experience Live App](https://beyondthemission.netlify.app/) • [Documentation PDF](./documentation/Beyond_the_Mission_Complete_Documentation.pdf) • [Architecture Guide](./docs/03-project-architecture.md) • [Getting Started](#-getting-started)
 
 </div>
+
+---
+
+## 🌐 Live Demo
+
+The official production deployment is hosted live on Netlify with automated continuous deployment from the `main` branch:
+
+👉 **[https://beyondthemission.netlify.app/](https://beyondthemission.netlify.app/)**
+
+- **Direct Experience URL:** [https://beyondthemission.netlify.app/experience](https://beyondthemission.netlify.app/experience)
+- **Interactive 3D Solar System:** Real-time planetary orbits, camera transitions, and astronomical telemetry.
+- **Dedicated Moon Museum:** Verified landing sites for Apollo 11–17 and Surveyor 3 with laser HUD callouts.
+- **Dedicated Mars Museum:** High-resolution surface models and historical dossiers for 9 robotic missions.
+- **Cinematic Narration:** Full documentary video player with synchronized voice narration and subtitles.
 
 ---
 
