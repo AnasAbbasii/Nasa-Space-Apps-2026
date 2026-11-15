@@ -3,6 +3,7 @@ import Image from "next/image";
 import { Space_Grotesk } from "next/font/google";
 import spaceBackground from "@/components/spacebackground.jpg";
 import CustomCursor from "@/components/cursor/CustomCursor";
+import NasaAttribution from "@/components/NasaAttribution";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -72,6 +73,8 @@ export default function RootLayout({
         {/* Custom Space Navigation & Targeting Reticle Cursor */}
         <CustomCursor />
         {children}
+        {/* Minimal NASA Space Apps Challenge 2026 Attribution */}
+        <NasaAttribution />
       </body>
     </html>
   );

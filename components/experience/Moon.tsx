@@ -54,7 +54,7 @@ export default function Moon({
 }: MoonProps) {
   useFrame((_state, delta) => {
     if (groupRef.current && autoRotate) {
-      groupRef.current.rotation.y += delta * 0.04;
+      groupRef.current.rotation.y += delta * 0.01;
     }
   });
 

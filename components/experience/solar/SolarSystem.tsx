@@ -260,10 +260,12 @@ function OrbitingMoon({
   }, [gl]);
 
   useFrame((_state, delta) => {
-    // Orbital revolution around Earth
+    // Orbital revolution around Earth (gentle, ~78% slower movement in Moon Museum mode)
     if (moonOrbitRef.current) {
-      if (!isMoonMuseum || !selectedMachine) {
+      if (!isMoonMuseum) {
         moonOrbitRef.current.rotation.y += delta * 0.12;
+      } else if (!selectedMachine) {
+        moonOrbitRef.current.rotation.y += delta * 0.026;
       }
     }
     // Track Moon world position for camera controller
