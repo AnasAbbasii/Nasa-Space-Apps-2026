@@ -56,25 +56,61 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   const [prevSlide, setPrevSlide] = useState<StorySlide | null>(null);
   const [isCrossfading, setIsCrossfading] = useState(false);
 
-  // Progressive caption word reveal
-  const [revealedWordCount, setRevealedWordCount] = useState(0);
-
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const crossfadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const slideElapsedMsRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(isPlaying);
+  isPlayingRef.current = isPlaying;
 
   const totalSlides = story.slides.length;
   const currentSlide: StorySlide | undefined = story.slides[slideIndex];
 
-  // Words list for current slide
-  const words = useMemo(() => {
+  // Split narration paragraph into distinct sentences without breaking on decimals or abbreviations
+  const sentences = useMemo(() => {
     if (!currentSlide?.caption) return [];
-    return currentSlide.caption.trim().split(/\s+/);
-  }, [currentSlide]);
+    const text = currentSlide.caption.trim();
+    // Protect decimal numbers like 10.6 and abbreviations like U.S.
+    const clean = text
+      .replace(/(\d+)\.(\d+)/g, '$1__DECIMAL__$2')
+      .replace(/U\.S\./g, 'U__DOT__S__DOT__')
+      .replace(/St\./g, 'St__DOT__');
+    const matches = clean.match(/[^.!?]+[.!?]+(?:\s+|$)|[^.!?]+$/g);
+    if (!matches) return [text];
+    return matches
+      .map((s) =>
+        s
+          .replace(/__DECIMAL__/g, '.')
+          .replace(/U__DOT__S__DOT__/g, 'U.S.')
+          .replace(/St__DOT__/g, 'St.')
+          .trim()
+      )
+      .filter(Boolean);
+  }, [currentSlide?.caption]);
 
-  // Fallback duration if audio is offline (~2.3 words/sec, min 10s)
+  // Cumulative word ratios to trigger sentence transitions in sync with voice
+  const sentenceThresholds = useMemo(() => {
+    if (!sentences.length) return [1];
+    const counts = sentences.map((s) => Math.max(1, s.trim().split(/\s+/).length));
+    const totalWords = counts.reduce((sum, c) => sum + c, 0);
+    let running = 0;
+    return counts.map((c) => {
+      running += c;
+      return running / totalWords;
+    });
+  }, [sentences]);
+
+  // Single-line sentence caption index
+  const [sentenceIndex, setSentenceIndex] = useState(0);
+  const currentSentence = sentences[sentenceIndex] || sentences[0] || '';
+
+  // Red progress bar playback percentage (0 to 100)
+  const [playbackProgress, setPlaybackProgress] = useState(0);
+
+  // Duration for current slide (~2.25 words/sec + 1.5s breath, min 12s)
   const fallbackDurationMs = useMemo(() => {
-    return Math.max(10000, Math.round((words.length / 2.3) * 1000));
-  }, [words.length]);
+    const totalWords = currentSlide?.caption ? currentSlide.caption.trim().split(/\s+/).length : 20;
+    return currentSlide?.duration || Math.max(12000, Math.round((totalWords / 2.25) * 1000) + 1500);
+  }, [currentSlide]);
 
   // Step to specific slide with dual-buffer crossfade
   const goToSlide = useCallback((newIndex: number) => {
@@ -98,9 +134,11 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     }
 
     setSlideIndex(newIndex);
-    setRevealedWordCount(0);
+    setSentenceIndex(0);
+    setPlaybackProgress(0);
     setAudioLoaded(false);
     setIsFinished(false);
+    slideElapsedMsRef.current = 0;
   }, [slideIndex, story.slides, totalSlides]);
 
   const handleNext = useCallback(() => {
@@ -129,23 +167,24 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     onClose();
   }, [onClose]);
 
-  // Toggle Play / Pause anywhere on click
+  // Toggle Play / Pause anywhere on click - preserves exact audio & progress position
   const handleTogglePlayPause = useCallback(() => {
     if (isFinished) return;
     setIsPlaying((prev) => {
       const next = !prev;
-      if (audioRef.current) {
+      const audio = audioRef.current;
+      if (audio && audio.src && audioLoaded) {
         if (next) {
-          audioRef.current.play().catch(() => {});
+          audio.play().catch(() => {});
         } else {
-          audioRef.current.pause();
+          audio.pause();
         }
       }
       return next;
     });
-  }, [isFinished]);
+  }, [audioLoaded, isFinished]);
 
-  // Audio lifecycle per slide: Narration drives the presentation
+  // Audio setup: runs ONLY when slideIndex changes. NEVER resets currentTime on play/pause!
   useEffect(() => {
     if (isFinished || !currentSlide) return;
 
@@ -155,128 +194,86 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       audioRef.current = new Audio();
     }
     const audio = audioRef.current;
+    const audioUrl: string | null = currentSlide?.audioSrc || null;
 
-    async function setupAudio() {
-      try {
-        let audioUrl: string | null = currentSlide?.audioSrc || null;
+    if (audioUrl) {
+      audio.pause();
+      audio.src = audioUrl;
+      audio.currentTime = 0;
 
-        // If not statically pre-baked, check server cache / voice studio endpoint
-        if (!audioUrl) {
-          try {
-            const res = await fetch('/api/narration', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                machineId: story.machineId,
-                slideId: currentSlide?.id,
-                text: currentSlide?.caption,
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              if (data.success && data.audioUrl) {
-                audioUrl = data.audioUrl;
-              }
-            }
-          } catch {
-            // Audio service offline; fall back to reading timer
-          }
-        }
-
+      audio.oncanplay = () => {
         if (isCancelled) return;
-
-        if (audioUrl) {
-          audio.src = audioUrl;
-          audio.currentTime = 0;
-
-          audio.oncanplay = () => {
-            if (isCancelled) return;
-            setAudioLoaded(true);
-            if (isPlaying) {
-              audio.play().catch(() => {});
-            }
-          };
-
-          audio.ontimeupdate = () => {
-            if (isCancelled || !audio.duration) return;
-            const progress = audio.currentTime / audio.duration;
-            const wordIdx = Math.min(words.length, Math.floor(progress * (words.length + 0.9)));
-            setRevealedWordCount(wordIdx);
-          };
-
-          // AUDIO FINISHES NATURALLY — THIS IS WHERE ADVANCE HAPPENS
-          audio.onended = () => {
-            if (isCancelled) return;
-            setRevealedWordCount(words.length);
-            // Brief 400ms cinematic breath before next picture
-            setTimeout(() => {
-              if (!isCancelled && isPlaying) {
-                handleNext();
-              }
-            }, 400);
-          };
-
-          audio.onerror = () => {
-            if (isCancelled) return;
-            setAudioLoaded(false);
-          };
-        } else {
-          setAudioLoaded(false);
+        setAudioLoaded(true);
+        if (isPlayingRef.current) {
+          audio.play().catch(() => {});
         }
-      } catch {
-        if (!isCancelled) setAudioLoaded(false);
-      }
-    }
+      };
 
-    setupAudio();
+      audio.onended = () => {
+        if (isCancelled) return;
+        setPlaybackProgress(100);
+        setTimeout(() => {
+          if (!isCancelled && isPlayingRef.current) {
+            handleNext();
+          }
+        }, 350);
+      };
+
+      audio.onerror = () => {
+        if (isCancelled) return;
+        setAudioLoaded(false);
+      };
+    } else {
+      audio.pause();
+      audio.src = '';
+      setAudioLoaded(false);
+    }
 
     return () => {
       isCancelled = true;
       audio.pause();
       audio.oncanplay = null;
-      audio.ontimeupdate = null;
       audio.onended = null;
       audio.onerror = null;
     };
-  }, [currentSlide, handleNext, isFinished, isPlaying, story.machineId, words.length]);
+  }, [slideIndex, currentSlide, handleNext, isFinished]);
 
-  // Synchronize external play/pause state
+  // Unified 50ms playback progress & single-line caption synchronization loop
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!isPlaying || isFinished) return;
 
-    if (isPlaying && !isFinished) {
-      if (audio.paused) {
-        audio.play().catch(() => {});
-      }
-    } else {
-      if (!audio.paused) {
-        audio.pause();
-      }
-    }
-  }, [isPlaying, isFinished]);
-
-  // Fallback timer when Voice Studio is offline (never runs if audio is loaded!)
-  useEffect(() => {
-    if (!isPlaying || isFinished || audioLoaded) return;
-
-    const intervalMs = 100;
-    let localElapsed = 0;
+    const intervalMs = 50;
 
     const timer = setInterval(() => {
-      localElapsed += intervalMs;
-      const progress = localElapsed / fallbackDurationMs;
-      const wordIdx = Math.min(words.length, Math.floor(progress * (words.length + 0.9)));
-      setRevealedWordCount(wordIdx);
+      const audio = audioRef.current;
+      const hasActiveAudio =
+        audioLoaded && audio && audio.duration && !isNaN(audio.duration) && audio.duration > 0;
 
-      if (localElapsed >= fallbackDurationMs) {
-        clearInterval(timer);
-        handleNext();
+      if (hasActiveAudio) {
+        const ratio = Math.min(1, Math.max(0, audio.currentTime / audio.duration));
+        setPlaybackProgress(ratio * 100);
+
+        let sIdx = sentenceThresholds.findIndex((t) => ratio < t);
+        if (sIdx === -1) sIdx = sentenceThresholds.length - 1;
+        setSentenceIndex(Math.max(0, sIdx));
+      } else {
+        slideElapsedMsRef.current += intervalMs;
+        const ratio = Math.min(1, slideElapsedMsRef.current / fallbackDurationMs);
+        setPlaybackProgress(ratio * 100);
+
+        let sIdx = sentenceThresholds.findIndex((t) => ratio < t);
+        if (sIdx === -1) sIdx = sentenceThresholds.length - 1;
+        setSentenceIndex(Math.max(0, sIdx));
+
+        if (slideElapsedMsRef.current >= fallbackDurationMs) {
+          clearInterval(timer);
+          handleNext();
+        }
       }
     }, intervalMs);
 
     return () => clearInterval(timer);
-  }, [audioLoaded, fallbackDurationMs, handleNext, isFinished, isPlaying, slideIndex, words.length]);
+  }, [audioLoaded, fallbackDurationMs, handleNext, isFinished, isPlaying, sentenceThresholds]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -387,6 +384,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
                 style={{
                   animation: `${kenBurnsAnim} 24s ease-out forwards`,
                   transformOrigin: kenBurnsOrigin,
+                  animationPlayState: isPlaying ? 'running' : 'paused',
                 }}
               />
 
@@ -452,54 +450,70 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
       )}
 
       {/* ============================================================ */}
-      {/* 4. PROGRESSIVE CAPTION DIRECTLY OVER IMAGE NEAR BOTTOM */}
+      {/* 4. SINGLE-LINE SEQUENTIAL CAPTIONS DIRECTLY OVER IMAGE NEAR BOTTOM */}
       {/* ============================================================ */}
       {!isFinished && currentSlide && (
         <div
           className="absolute inset-x-0 bottom-0 z-20 pointer-events-none flex flex-col items-center justify-end"
           style={{
             background:
-              'linear-gradient(to top, rgba(0, 0, 0, 0.94) 0%, rgba(0, 0, 0, 0.70) 50%, rgba(0, 0, 0, 0.25) 80%, transparent 100%)',
+              'linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.72) 50%, rgba(0, 0, 0, 0.20) 80%, transparent 100%)',
             paddingTop: '6rem',
-            paddingBottom: 'max(2.5rem, env(safe-area-inset-bottom, 2.5rem))',
+            paddingBottom: 'max(2.8rem, env(safe-area-inset-bottom, 2.8rem))',
             paddingLeft: 'max(1.5rem, env(safe-area-inset-left, 1.5rem))',
             paddingRight: 'max(1.5rem, env(safe-area-inset-right, 1.5rem))',
           }}
         >
-          <div className="max-w-4xl w-full text-center">
-            {/* Slide Chapter / Title */}
+          <div className="max-w-5xl w-full text-center flex flex-col items-center">
+            {/* Slide Chapter / Title & Counter */}
             <div
-              className="text-xs sm:text-[13px] font-medium tracking-[0.22em] uppercase text-white/70 mb-3"
+              className="text-[11px] sm:text-xs tracking-[0.22em] uppercase font-mono text-white/60 mb-3 flex items-center justify-center gap-2 select-none"
               style={{ fontFamily: '"Space Grotesk", Geist, Inter, system-ui, sans-serif' }}
             >
-              {currentSlide.title}
+              <span className="text-red-400 font-semibold">{slideIndex + 1}/{totalSlides}</span>
+              <span className="text-white/25">•</span>
+              <span className="tracking-[0.18em]">{currentSlide.title}</span>
             </div>
 
-            {/* Spoken Narration Words (Progressively Illuminated in Sync with Audio) */}
-            <p
-              className="text-base sm:text-lg md:text-xl lg:text-[22px] leading-relaxed text-center font-normal tracking-wide transition-all duration-150 m-0"
-              style={{
-                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
-                textShadow: '0 2px 8px rgba(0, 0, 0, 0.95), 0 4px 16px rgba(0, 0, 0, 0.85)',
-              }}
-            >
-              {words.map((word, idx) => {
-                const isRevealed = idx < revealedWordCount;
-                return (
-                  <span
-                    key={`${currentSlide.id}-w-${idx}`}
-                    className={`inline-block mr-1.5 transition-colors duration-150 ${
-                      isRevealed
-                        ? 'text-white font-medium opacity-100'
-                        : 'text-white/35 font-normal'
-                    }`}
-                  >
-                    {word}
-                  </span>
-                );
-              })}
-            </p>
+            {/* Single-Line Sentence Caption (Never Wraps onto Second Line, Displays One Sentence At A Time) */}
+            <div className="w-full flex justify-center items-center overflow-hidden px-2">
+              <p
+                key={`${currentSlide.id}-sent-${sentenceIndex}`}
+                className={`font-medium tracking-wide text-white m-0 whitespace-nowrap text-center transition-opacity duration-300 ease-out animate-fade-in ${
+                  currentSentence.length > 130
+                    ? 'text-xs sm:text-sm md:text-base lg:text-lg'
+                    : currentSentence.length > 80
+                    ? 'text-sm sm:text-base md:text-lg lg:text-xl'
+                    : 'text-base sm:text-lg md:text-xl lg:text-2xl'
+                }`}
+                style={{
+                  fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+                  textShadow: '0 2px 10px rgba(0, 0, 0, 0.95), 0 4px 20px rgba(0, 0, 0, 0.85)',
+                  maxWidth: '96vw',
+                }}
+              >
+                {currentSentence}
+              </p>
+            </div>
           </div>
+        </div>
+      )}
+
+      {/* ============================================================ */}
+      {/* 5. RED PROGRESS BAR ALONG THE VERY BOTTOM EDGE */}
+      {/* ============================================================ */}
+      {!isFinished && (
+        <div
+          className="absolute bottom-0 inset-x-0 z-40 h-[3.5px] bg-white/15 overflow-hidden pointer-events-none"
+          aria-hidden="true"
+        >
+          <div
+            className="h-full bg-red-600 shadow-[0_0_10px_rgba(239,68,68,0.9)]"
+            style={{
+              width: `${playbackProgress}%`,
+              transition: isPlaying ? 'width 60ms linear' : 'none',
+            }}
+          />
         </div>
       )}
 

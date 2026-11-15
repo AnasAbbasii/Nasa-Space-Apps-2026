@@ -56,6 +56,7 @@ interface SolarSystemProps {
   onSelectMarsMachine: (machine: MarsMachine | null) => void;
   onHoverMarsMachine: (id: string | null) => void;
   isStorytelling?: boolean;
+  isInteracting?: boolean;
 }
 
 // Model renderer for FBX planetary models
@@ -190,6 +191,7 @@ interface OrbitingMoonProps {
   onSelectMachine: (machine: LunarMachine | null) => void;
   onHoverMachine: (id: string | null) => void;
   isStorytelling?: boolean;
+  isInteracting?: boolean;
 }
 
 function OrbitingMoon({
@@ -201,11 +203,14 @@ function OrbitingMoon({
   onSelectMachine,
   onHoverMachine,
   isStorytelling = false,
+  isInteracting = false,
 }: OrbitingMoonProps) {
   const moonOrbitRef = useRef<THREE.Group>(null);
+  const moonSpinRef = useRef<THREE.Group>(null);
   const moonMeshRef = useRef<THREE.Mesh>(null);
   const [isHovered, setIsHovered] = useState(false);
   const moonHoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const moonSpeedFactorRef = useRef(1.0);
   const { gl } = useThree();
   const moonTexture = useTexture('/textures/moon_2k.jpg');
   moonTexture.colorSpace = THREE.SRGBColorSpace;
@@ -218,8 +223,8 @@ function OrbitingMoon({
       clearTimeout(moonHoverTimeoutRef.current);
       moonHoverTimeoutRef.current = null;
     }
+    setIsHovered(true);
     if (!isMoonMuseum) {
-      setIsHovered(true);
       cursorStore.set('focus');
     }
   }, [isMoonMuseum]);
@@ -264,14 +269,40 @@ function OrbitingMoon({
 
   useFrame((_state, delta) => {
     if (isStorytelling) return;
-    // Orbital revolution around Earth (gentle, ~78% slower movement in Moon Museum mode)
-    if (moonOrbitRef.current) {
-      if (!isMoonMuseum) {
-        moonOrbitRef.current.rotation.y += delta * 0.12;
-      } else if (!selectedMachine) {
-        moonOrbitRef.current.rotation.y += delta * 0.026;
+
+    // Orbital revolution around Earth:
+    // In solar overview, Moon revolves around Earth.
+    // In Moon Museum mode, orbital revolution is frozen so the Moon remains spatially stationary.
+    if (moonOrbitRef.current && !isMoonMuseum) {
+      moonOrbitRef.current.rotation.y += delta * 0.12;
+    }
+
+    // Slow, smooth, continuous axial rotation with pause-on-hover & touch stabilization
+    if (moonSpinRef.current) {
+      if (isMoonMuseum) {
+        const isMoonPaused =
+          isHovered ||
+          hoveredId !== null ||
+          selectedMachine !== null ||
+          isInteracting;
+
+        const targetSpeed = isMoonPaused ? 0 : 1;
+        moonSpeedFactorRef.current = THREE.MathUtils.damp(
+          moonSpeedFactorRef.current,
+          targetSpeed,
+          7.0,
+          delta
+        );
+        const effectiveSpeed = moonSpeedFactorRef.current < 0.0005 ? 0 : moonSpeedFactorRef.current;
+        if (effectiveSpeed > 0) {
+          moonSpinRef.current.rotation.y += delta * 0.015 * effectiveSpeed;
+        }
+      } else {
+        moonSpeedFactorRef.current = 1.0;
+        moonSpinRef.current.rotation.y += delta * 0.03;
       }
     }
+
     // Track Moon world position for camera controller
     if (moonMeshRef.current && planetPositionsRef.current) {
       let wp = planetPositionsRef.current.get('moon');
@@ -286,30 +317,61 @@ function OrbitingMoon({
   return (
     <group ref={moonOrbitRef}>
       <group position={[1.45, 0.05, 0]}>
-        <mesh
-          ref={moonMeshRef}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (isMoonMuseum) {
-              onSelectMachine(null);
-            } else {
-              onEnterMoonMuseum();
-            }
-          }}
-          onPointerOver={handleMoonPointerOver}
-          onPointerOut={handleMoonPointerOut}
-        >
-          <sphereGeometry args={[moonRadius, 64, 64]} />
-          <meshStandardMaterial
-            map={moonTexture}
-            roughness={0.92}
-            metalness={0.02}
-            emissive="#ffffff"
-            emissiveIntensity={isHovered && !isMoonMuseum ? 0.25 : 0}
-          />
-        </mesh>
+        {/* moonSpinRef rotates the Moon sphere and all surface elements together as a single rigid body */}
+        <group ref={moonSpinRef}>
+          <mesh
+            ref={moonMeshRef}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (isMoonMuseum) {
+                onSelectMachine(null);
+              } else {
+                onEnterMoonMuseum();
+              }
+            }}
+            onPointerOver={handleMoonPointerOver}
+            onPointerOut={handleMoonPointerOut}
+          >
+            <sphereGeometry args={[moonRadius, 64, 64]} />
+            <meshStandardMaterial
+              map={moonTexture}
+              roughness={0.92}
+              metalness={0.02}
+              emissive="#ffffff"
+              emissiveIntensity={isHovered && !isMoonMuseum ? 0.25 : 0}
+            />
+          </mesh>
 
-        {/* Dynamic Hover Floating Name Label (Hover only) */}
+          {/* Lunar Museum Overlay - Abandoned Machines and Callouts */}
+          {isMoonMuseum && !isStorytelling && (
+            <group>
+              {/* Lunar machines positioned at verified geographic coordinates on the surface */}
+              {LUNAR_MACHINES.map((m) => (
+                <LunarMachineObject
+                  key={m.id}
+                  machine={m}
+                  radius={moonRadius}
+                  isActive={m.id === hoveredId || m.id === selectedMachine?.id}
+                  onClick={onSelectMachine}
+                  onHover={onHoverMachine}
+                />
+              ))}
+
+              <DynamicCallouts
+                machines={LUNAR_MACHINES}
+                moonGroupRef={moonSpinRef}
+                radius={moonRadius}
+                distanceFactor={moonRadius * 3.4}
+                hoveredId={hoveredId}
+                onHover={onHoverMachine}
+                selectedMachine={selectedMachine}
+                onSelect={onSelectMachine}
+              />
+            </group>
+          )}
+        </group>
+
+        {/* Dynamic Hover Floating Name Label (Hover only in solar system overview) */}
         {!isMoonMuseum && !isStorytelling && (
           <Html
             position={[0, moonRadius + 0.18, 0]}
@@ -348,33 +410,6 @@ function OrbitingMoon({
               </span>
             </div>
           </Html>
-        )}
-
-        {/* Lunar Museum Overlay - Abandoned Machines and Callouts */}
-        {isMoonMuseum && !isStorytelling && (
-          <group>
-            {/* Lunar machines positioned at verified geographic coordinates on the surface */}
-            {LUNAR_MACHINES.map((m) => (
-              <LunarMachineObject
-                key={m.id}
-                machine={m}
-                radius={moonRadius}
-                isActive={m.id === hoveredId || m.id === selectedMachine?.id}
-                onClick={onSelectMachine}
-                onHover={onHoverMachine}
-              />
-            ))}
-
-            <DynamicCallouts
-              machines={LUNAR_MACHINES}
-              radius={moonRadius}
-              distanceFactor={moonRadius * 3.4}
-              hoveredId={hoveredId}
-              onHover={onHoverMachine}
-              selectedMachine={selectedMachine}
-              onSelect={onSelectMachine}
-            />
-          </group>
         )}
       </group>
     </group>
@@ -479,10 +514,13 @@ export default function SolarSystem({
   onSelectMarsMachine,
   onHoverMarsMachine,
   isStorytelling = false,
+  isInteracting = false,
 }: SolarSystemProps) {
   // Orbital angles ref for each celestial body
   const anglesRef = useRef<Map<string, number>>(new Map());
   const planetGroupsRef = useRef<Map<string, THREE.Group>>(new Map());
+  const earthBodyRef = useRef<THREE.Group>(null);
+  const marsSpeedFactorRef = useRef(1.0);
 
   // Interactive hover tracking with debounce to eliminate child-mesh boundary flicker
   const [hoveredBodyId, setHoveredBodyId] = useState<string | null>(null);
@@ -495,8 +533,10 @@ export default function SolarSystem({
       hoverTimeoutRef.current = null;
     }
     setHoveredBodyId(id);
-    cursorStore.set('focus');
-  }, []);
+    if (!activeMuseum) {
+      cursorStore.set('focus');
+    }
+  }, [activeMuseum]);
 
   const handlePointerOut = useCallback((id: string) => {
     if (hoverTimeoutRef.current) {
@@ -553,7 +593,13 @@ export default function SolarSystem({
 
       // Update orbital revolution
       if (b.orbitRadius > 0) {
-        if (isPlaying && !isStorytelling) {
+        const isOrbitFrozen =
+          (activeMuseum === 'moon' && b.id === 'earth') ||
+          (activeMuseum === 'mars' && b.id === 'mars') ||
+          !isPlaying ||
+          isStorytelling;
+
+        if (!isOrbitFrozen) {
           const currentAngle = anglesRef.current.get(b.id) ?? 0;
           const newAngle = currentAngle + b.orbitalSpeed * delta * 0.18;
           anglesRef.current.set(b.id, newAngle);
@@ -586,9 +632,33 @@ export default function SolarSystem({
       }
 
       // Axial rotation
-      const isMarsFrozen = (b.id === 'mars' && activeMuseum === 'mars' && selectedMarsMachine !== null) || isStorytelling;
-      if (!isMarsFrozen && !isStorytelling) {
-        group.rotation.y += b.rotationSpeed * delta * 15;
+      if (!isStorytelling) {
+        if (b.id === 'earth') {
+          // Earth rotates on its own body group, so the sibling Moon does not inherit Earth's axial spin
+          if (earthBodyRef.current) {
+            earthBodyRef.current.rotation.y += b.rotationSpeed * delta * 15;
+          }
+        } else if (b.id === 'mars' && activeMuseum === 'mars') {
+          const isMarsPaused =
+            hoveredBodyId === 'mars' ||
+            hoveredMarsId !== null ||
+            selectedMarsMachine !== null ||
+            isInteracting;
+
+          const targetSpeed = isMarsPaused ? 0 : 1;
+          marsSpeedFactorRef.current = THREE.MathUtils.damp(
+            marsSpeedFactorRef.current,
+            targetSpeed,
+            7.0,
+            delta
+          );
+          const effectiveSpeed = marsSpeedFactorRef.current < 0.0005 ? 0 : marsSpeedFactorRef.current;
+          if (effectiveSpeed > 0) {
+            group.rotation.y += delta * 0.015 * effectiveSpeed;
+          }
+        } else {
+          group.rotation.y += b.rotationSpeed * delta * 15;
+        }
       }
     });
   });
@@ -631,7 +701,10 @@ export default function SolarSystem({
             }}
           >
             {/* Tilt container for axial inclination */}
-            <group rotation={[THREE.MathUtils.degToRad(b.axialTilt), 0, 0]}>
+            <group
+              ref={isEarth ? earthBodyRef : undefined}
+              rotation={[THREE.MathUtils.degToRad(b.axialTilt), 0, 0]}
+            >
               {/* Lightweight Interactive Hit Area: restricts raycasting to 256 triangles */}
               <mesh
                 onPointerOver={(e) => {
@@ -762,6 +835,7 @@ export default function SolarSystem({
                     onSelectMachine={onSelectMachine}
                     onHoverMachine={onHoverMachine}
                     isStorytelling={isStorytelling}
+                    isInteracting={isInteracting}
                   />
                 </Suspense>
               </AssetErrorBoundary>

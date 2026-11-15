@@ -103,8 +103,8 @@ function CameraController({
       const focusDist = selectedBody.id === 'saturn'
         ? selectedBody.planetRadius * 4.6
         : selectedBody.id === 'sun'
-        ? selectedBody.planetRadius * 3.2
-        : selectedBody.planetRadius * 3.4;
+          ? selectedBody.planetRadius * 3.2
+          : selectedBody.planetRadius * 3.4;
 
       const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
       const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
@@ -133,54 +133,6 @@ function CameraController({
   useFrame((state) => {
     if (isStorytelling || !controlsRef.current) return;
 
-    // Follow moving Moon in Moon Museum mode
-    if (activeMuseum === 'moon' && planetPositionsRef.current) {
-      const livePos = planetPositionsRef.current.get('moon');
-      if (livePos) {
-        const focusDist = selectedMachine ? 0.20 * 2.8 : 0.20 * 3.4;
-        _targetCam.set(
-          livePos.x,
-          livePos.y + (selectedMachine ? focusDist * 0.18 : focusDist * 0.22),
-          livePos.z + focusDist * 0.95,
-        );
-        _camToPlanet.subVectors(livePos, _targetCam).normalize();
-        _camRight.crossVectors(_camToPlanet, _upVec).normalize();
-        const defaultOffset = 0.20 * 0.45;
-        const selectedOffset = 0.20 * 0.70;
-        const frameOffset = selectedMachine ? selectedOffset : defaultOffset;
-        _desiredTarget.copy(livePos).addScaledVector(_camRight, frameOffset);
-
-        state.camera.position.lerp(_targetCam, 0.05);
-        controlsRef.current.target.lerp(_desiredTarget, 0.05);
-        controlsRef.current.update();
-        return;
-      }
-    }
-
-    // Follow moving Mars in Mars Museum mode
-    if (activeMuseum === 'mars' && planetPositionsRef.current) {
-      const livePos = planetPositionsRef.current.get('mars');
-      if (livePos) {
-        const focusDist = selectedMarsMachine ? 0.42 * 2.8 : 0.42 * 3.4;
-        _targetCam.set(
-          livePos.x,
-          livePos.y + (selectedMarsMachine ? focusDist * 0.18 : focusDist * 0.22),
-          livePos.z + focusDist * 0.95,
-        );
-        _camToPlanet.subVectors(livePos, _targetCam).normalize();
-        _camRight.crossVectors(_camToPlanet, _upVec).normalize();
-        const defaultOffset = 0.42 * 0.45;
-        const selectedOffset = 0.42 * 0.70;
-        const frameOffset = selectedMarsMachine ? selectedOffset : defaultOffset;
-        _desiredTarget.copy(livePos).addScaledVector(_camRight, frameOffset);
-
-        state.camera.position.lerp(_targetCam, 0.05);
-        controlsRef.current.target.lerp(_desiredTarget, 0.05);
-        controlsRef.current.update();
-        return;
-      }
-    }
-
     // Follow moving planet dynamically if in ordinary solar view and body is selected
     if (!activeMuseum && selectedBody && planetPositionsRef.current) {
       const livePos = planetPositionsRef.current.get(selectedBody.id);
@@ -188,8 +140,8 @@ function CameraController({
         const focusDist = selectedBody.id === 'saturn'
           ? selectedBody.planetRadius * 4.6
           : selectedBody.id === 'sun'
-          ? selectedBody.planetRadius * 3.2
-          : selectedBody.planetRadius * 3.4;
+            ? selectedBody.planetRadius * 3.2
+            : selectedBody.planetRadius * 3.4;
 
         if (livePos.lengthSq() > 0.01) {
           _radial.copy(livePos).normalize();
@@ -221,7 +173,10 @@ function CameraController({
     controlsRef.current.target.lerp(targetLookAt.current, 0.05);
     controlsRef.current.update();
 
-    if (state.camera.position.distanceTo(targetCamPos.current) < 0.02) {
+    if (state.camera.position.distanceTo(targetCamPos.current) < 0.008) {
+      state.camera.position.copy(targetCamPos.current);
+      controlsRef.current.target.copy(targetLookAt.current);
+      controlsRef.current.update();
       isTransitioningRef.current = false;
     }
   });
@@ -311,6 +266,9 @@ export default function Experience() {
   // Cinematic Storytelling state
   const [storyMachine, setStoryMachine] = useState<LunarMachine | MarsMachine | null>(null);
   const isStorytelling = storyMachine !== null;
+
+  // Active touch/drag interaction state for mobile compatibility & rotation pausing
+  const [isInteracting, setIsInteracting] = useState(false);
 
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
 
@@ -557,6 +515,7 @@ export default function Experience() {
             onSelectMarsMachine={setSelectedMarsMachine}
             onHoverMarsMachine={setHoveredMarsId}
             isStorytelling={isStorytelling}
+            isInteracting={isInteracting}
           />
         </Suspense>
 
@@ -581,9 +540,11 @@ export default function Experience() {
           enableDamping
           dampingFactor={0.08}
           onStart={() => {
+            setIsInteracting(true);
             cursorStore.set('grabbing');
           }}
           onEnd={() => {
+            setIsInteracting(false);
             cursorStore.set('default');
           }}
         />
