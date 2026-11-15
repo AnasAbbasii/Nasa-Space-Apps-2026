@@ -15,6 +15,9 @@ import InfoPanel from './InfoPanel';
 import type { MarsMachine } from '@/lib/mars-machines';
 import MarsInfoPanel from './mars/MarsInfoPanel';
 
+// Cinematic Storytelling Component
+import StorytellingView from './StorytellingView';
+
 // Solar System Components & Data
 import type { CelestialBody } from '@/lib/solar-system';
 import SolarSystem from './solar/SolarSystem';
@@ -303,6 +306,9 @@ export default function Experience() {
   const [selectedMarsMachine, setSelectedMarsMachine] = useState<MarsMachine | null>(null);
   const [hoveredMarsId, setHoveredMarsId] = useState<string | null>(null);
 
+  // Cinematic Storytelling state
+  const [storyMachine, setStoryMachine] = useState<LunarMachine | MarsMachine | null>(null);
+
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
 
   // Switch to Moon Museum: zooms to the existing Moon in Solar System
@@ -310,6 +316,7 @@ export default function Experience() {
     setSelectedBody(null);
     setSelectedMachine(null);
     setHoveredId(null);
+    setStoryMachine(null);
     setActiveMuseum('moon');
   }, []);
 
@@ -318,6 +325,7 @@ export default function Experience() {
     setSelectedBody(null);
     setSelectedMarsMachine(null);
     setHoveredMarsId(null);
+    setStoryMachine(null);
     setActiveMuseum('mars');
   }, []);
 
@@ -337,6 +345,7 @@ export default function Experience() {
     setSelectedMarsMachine(null);
     setHoveredId(null);
     setHoveredMarsId(null);
+    setStoryMachine(null);
   }, []);
 
   const handleReset = useCallback(() => {
@@ -473,6 +482,7 @@ export default function Experience() {
         <InfoPanel
           machine={selectedMachine}
           onClose={() => setSelectedMachine(null)}
+          onExploreStory={() => setStoryMachine(selectedMachine)}
         />
       )}
 
@@ -480,6 +490,15 @@ export default function Experience() {
         <MarsInfoPanel
           machine={selectedMarsMachine}
           onClose={() => setSelectedMarsMachine(null)}
+          onExploreStory={() => setStoryMachine(selectedMarsMachine)}
+        />
+      )}
+
+      {/* Fullscreen Cinematic Storytelling Overlay */}
+      {storyMachine && (
+        <StorytellingView
+          machine={storyMachine}
+          onClose={() => setStoryMachine(null)}
         />
       )}
 
