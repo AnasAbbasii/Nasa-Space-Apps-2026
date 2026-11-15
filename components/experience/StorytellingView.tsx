@@ -31,8 +31,10 @@ interface StorytellingViewProps {
  *    - Clicking anywhere on screen cleanly pauses/resumes audio and visuals.
  *    - Return button cleanly stops audio and restores 3D scene without page reload.
  */
-const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as const;
-type PlaybackSpeed = (typeof SPEED_OPTIONS)[number];
+const MIN_SPEED = 0.5;
+const MAX_SPEED = 2.0;
+const SPEED_STEP = 0.25;
+const DEFAULT_SPEED = 1.0;
 
 export default function StorytellingView({ machine, onClose }: StorytellingViewProps) {
   // Synthesize or retrieve verified story from master database
@@ -65,10 +67,22 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   const slideElapsedMsRef = useRef<number>(0);
   const isPlayingRef = useRef<boolean>(isPlaying);
 
-  // Playback speed state (0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x)
-  const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
-  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState(false);
-  const playbackSpeedRef = useRef<number>(1);
+  // Playback speed state (0.5x to 2.0x, step 0.25x, default 1.0x)
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(DEFAULT_SPEED);
+  const playbackSpeedRef = useRef<number>(DEFAULT_SPEED);
+
+  // Formatted numerical speed display (e.g. 1.0x, 1.25x)
+  const playbackSpeedText = useMemo(() => {
+    if (playbackSpeed % 0.5 === 0) {
+      return `${playbackSpeed.toFixed(1)}x`;
+    }
+    return `${playbackSpeed.toFixed(2)}x`;
+  }, [playbackSpeed]);
+
+  // Track progress fill percentage for draggable range slider
+  const sliderPercentage = useMemo(() => {
+    return Math.max(0, Math.min(100, ((playbackSpeed - MIN_SPEED) / (MAX_SPEED - MIN_SPEED)) * 100));
+  }, [playbackSpeed]);
 
   // Double-click / double-tap detection refs
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -188,28 +202,16 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     onClose();
   }, [onClose]);
 
-  // Adjust playback speed (0.5x, 0.75x, 1x, 1.25x, 1.5x, 1.75x, 2x)
-  const handleSpeedChange = useCallback((newSpeed: PlaybackSpeed) => {
-    setPlaybackSpeed(newSpeed);
-    playbackSpeedRef.current = newSpeed;
-    setIsSpeedMenuOpen(false);
+  // Adjust playback speed immediately while dragging (0.5x to 2.0x, step 0.25x)
+  const handleSpeedChange = useCallback((newSpeed: number) => {
+    const clamped = Math.min(MAX_SPEED, Math.max(MIN_SPEED, Number(newSpeed.toFixed(2))));
+    setPlaybackSpeed(clamped);
+    playbackSpeedRef.current = clamped;
 
     if (audioRef.current) {
-      audioRef.current.playbackRate = newSpeed;
+      audioRef.current.playbackRate = clamped;
     }
   }, []);
-
-  // Close speed menu when clicking outside
-  useEffect(() => {
-    if (!isSpeedMenuOpen) return;
-    const handleWindowClick = (e: MouseEvent) => {
-      if (!(e.target as HTMLElement).closest('[data-speed-control="true"]')) {
-        setIsSpeedMenuOpen(false);
-      }
-    };
-    window.addEventListener('click', handleWindowClick);
-    return () => window.removeEventListener('click', handleWindowClick);
-  }, [isSpeedMenuOpen]);
 
   // Toggle Play / Pause anywhere on click - preserves exact audio & progress position
   const handleTogglePlayPause = useCallback(() => {
@@ -232,12 +234,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   // Single-click handler: debounced slightly (240ms) so double-click cancels play/pause toggle
   const handleContainerClick = useCallback(
     (e: React.MouseEvent) => {
-      if ((e.target as HTMLElement).closest('button, [data-interactive="true"]')) {
-        return;
-      }
-
-      if (isSpeedMenuOpen) {
-        setIsSpeedMenuOpen(false);
+      if ((e.target as HTMLElement).closest('button, input, [data-interactive="true"]')) {
         return;
       }
 
@@ -251,13 +248,13 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
         clickTimeoutRef.current = null;
       }, 240);
     },
-    [handleTogglePlayPause, isSpeedMenuOpen]
+    [handleTogglePlayPause]
   );
 
   // Double-click handler: immediately skips current slide with normal transition
   const handleContainerDoubleClick = useCallback(
     (e: React.MouseEvent) => {
-      if ((e.target as HTMLElement).closest('button, [data-interactive="true"]')) {
+      if ((e.target as HTMLElement).closest('button, input, [data-interactive="true"]')) {
         return;
       }
 
@@ -277,7 +274,7 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
   // Touch screen double-tap detection for mobile devices (prevents unwanted zoom)
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      if ((e.target as HTMLElement).closest('button, [data-interactive="true"]')) {
+      if ((e.target as HTMLElement).closest('button, input, [data-interactive="true"]')) {
         return;
       }
 
@@ -395,23 +392,23 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        if (isSpeedMenuOpen) {
-          setIsSpeedMenuOpen(false);
-        } else {
-          handleExit();
-        }
+        handleExit();
       } else if (e.code === 'Space') {
-        e.preventDefault();
-        handleTogglePlayPause();
+        if ((document.activeElement as HTMLElement)?.tagName !== 'INPUT') {
+          e.preventDefault();
+          handleTogglePlayPause();
+        }
       } else if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        handleNext();
+        if ((document.activeElement as HTMLElement)?.tagName !== 'INPUT') {
+          e.preventDefault();
+          handleNext();
+        }
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleExit, handleNext, handleTogglePlayPause, isSpeedMenuOpen]);
+  }, [handleExit, handleNext, handleTogglePlayPause]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -568,85 +565,62 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
           <span>RETURN</span>
         </button>
 
-        {/* PLAYBACK SPEED ADJUSTER */}
-        <div className="relative" data-speed-control="true" data-interactive="true">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsSpeedMenuOpen((prev) => !prev);
-            }}
-            data-cursor="focus"
-            aria-haspopup="true"
-            aria-expanded={isSpeedMenuOpen}
-            aria-label={`Playback speed: ${playbackSpeed}x`}
-            className="group inline-flex items-center gap-1.5 px-3 sm:px-3.5 py-2 rounded-full text-xs sm:text-[13px] tracking-[0.14em] uppercase font-medium text-white/85 hover:text-white transition-all duration-200 ease-out hover:scale-[1.03] active:scale-[0.97] cursor-pointer shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
-            style={{
-              background: isSpeedMenuOpen ? 'rgba(255, 255, 255, 0.14)' : 'rgba(0, 0, 0, 0.40)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
-              border: isSpeedMenuOpen
-                ? '1px solid rgba(239, 68, 68, 0.55)'
-                : '1px solid rgba(255, 255, 255, 0.12)',
-              fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
-            }}
-          >
-            <span className="text-white/50 text-[10px] tracking-wider font-mono">SPEED</span>
-            <span className="font-semibold text-red-400">{playbackSpeed}x</span>
-            <svg
-              className={`w-3 h-3 text-white/60 transition-transform duration-200 ${
-                isSpeedMenuOpen ? 'rotate-180 text-white' : ''
-              }`}
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-            >
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
-          </button>
+        {/* DRAGGABLE PLAYBACK SPEED SLIDER */}
+        <div
+          data-speed-control="true"
+          data-interactive="true"
+          onClick={(e) => e.stopPropagation()}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+          }}
+          className="inline-flex items-center gap-2 sm:gap-2.5 px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-full text-xs sm:text-[13px] font-medium text-white/85 shadow-[0_4px_24px_rgba(0,0,0,0.5)]"
+          style={{
+            background: 'rgba(0, 0, 0, 0.40)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+          }}
+        >
+          <span className="text-white/50 text-[10px] sm:text-[11px] tracking-[0.16em] uppercase font-mono select-none">
+            SPEED
+          </span>
 
-          {/* COMPACT SPEED DROPDOWN MENU */}
-          {isSpeedMenuOpen && (
-            <div
-              role="menu"
-              aria-label="Playback speed options"
+          {/* Draggable Range Input */}
+          <div className="relative flex items-center">
+            <input
+              type="range"
+              min={MIN_SPEED}
+              max={MAX_SPEED}
+              step={SPEED_STEP}
+              value={playbackSpeed}
+              onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+              onInput={(e) => handleSpeedChange(parseFloat((e.target as HTMLInputElement).value))}
               onClick={(e) => e.stopPropagation()}
-              onDoubleClick={(e) => e.stopPropagation()}
-              className="absolute left-0 mt-2 py-1.5 w-32 rounded-xl border border-white/15 bg-black/90 backdrop-blur-xl shadow-2xl z-50 flex flex-col gap-0.5 animate-fade-in"
-              style={{
-                fontFamily: '"Space Grotesk", Geist, Inter, system-ui, -apple-system, sans-serif',
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
               }}
-            >
-              <div className="px-3 py-1 text-[10px] tracking-[0.2em] uppercase text-white/40 font-mono border-b border-white/10 mb-1">
-                Speed
-              </div>
-              {SPEED_OPTIONS.map((speed) => (
-                <button
-                  key={speed}
-                  type="button"
-                  role="menuitem"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleSpeedChange(speed);
-                  }}
-                  className={`px-3 py-1.5 text-xs text-left tracking-wider font-mono flex items-center justify-between transition-colors cursor-pointer ${
-                    playbackSpeed === speed
-                      ? 'text-red-400 bg-white/10 font-bold'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  <span>{speed}x</span>
-                  {speed === 1 && (
-                    <span className="text-[10px] text-white/40 tracking-normal font-sans">Def</span>
-                  )}
-                  {playbackSpeed === speed && (
-                    <span className="text-red-400 text-xs font-bold">✓</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
+              aria-label="Playback Speed Slider"
+              aria-valuemin={MIN_SPEED}
+              aria-valuemax={MAX_SPEED}
+              aria-valuenow={playbackSpeed}
+              aria-valuetext={playbackSpeedText}
+              className="w-16 sm:w-24 h-1.5 appearance-none rounded-full cursor-pointer focus:outline-none select-none speed-slider"
+              style={{
+                background: `linear-gradient(to right, #ef4444 0%, #ef4444 ${sliderPercentage}%, rgba(255, 255, 255, 0.22) ${sliderPercentage}%, rgba(255, 255, 255, 0.22) 100%)`,
+              }}
+            />
+          </div>
+
+          {/* Numerical Speed Indicator (e.g. 1.0x, 1.25x) */}
+          <span
+            className="font-mono font-bold text-red-400 text-xs sm:text-[13px] min-w-[34px] sm:min-w-[38px] text-right select-none"
+            aria-live="polite"
+          >
+            {playbackSpeedText}
+          </span>
         </div>
       </div>
 
@@ -777,8 +751,40 @@ export default function StorytellingView({ machine, onClose }: StorytellingViewP
         </div>
       )}
 
-      {/* Ken Burns Keyframes */}
+      {/* Custom Slider & Ken Burns Styles */}
       <style jsx global>{`
+        .speed-slider::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 2px solid #ef4444;
+          cursor: grab;
+          box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+          transition: transform 0.12s ease, background-color 0.12s ease;
+        }
+        .speed-slider::-webkit-slider-thumb:active {
+          cursor: grabbing;
+          transform: scale(1.25);
+          background: #f87171;
+        }
+        .speed-slider::-moz-range-thumb {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: #ffffff;
+          border: 2px solid #ef4444;
+          cursor: grab;
+          box-shadow: 0 0 8px rgba(239, 68, 68, 0.85);
+          transition: transform 0.12s ease, background-color 0.12s ease;
+        }
+        .speed-slider::-moz-range-thumb:active {
+          cursor: grabbing;
+          transform: scale(1.25);
+          background: #f87171;
+        }
         @keyframes kenburns-zoom-in {
           0% {
             transform: scale(1);
