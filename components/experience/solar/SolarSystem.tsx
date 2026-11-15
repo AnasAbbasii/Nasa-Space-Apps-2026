@@ -55,6 +55,7 @@ interface SolarSystemProps {
   hoveredMarsId: string | null;
   onSelectMarsMachine: (machine: MarsMachine | null) => void;
   onHoverMarsMachine: (id: string | null) => void;
+  isStorytelling?: boolean;
 }
 
 // Model renderer for FBX planetary models
@@ -188,6 +189,7 @@ interface OrbitingMoonProps {
   hoveredId: string | null;
   onSelectMachine: (machine: LunarMachine | null) => void;
   onHoverMachine: (id: string | null) => void;
+  isStorytelling?: boolean;
 }
 
 function OrbitingMoon({
@@ -198,6 +200,7 @@ function OrbitingMoon({
   hoveredId,
   onSelectMachine,
   onHoverMachine,
+  isStorytelling = false,
 }: OrbitingMoonProps) {
   const moonOrbitRef = useRef<THREE.Group>(null);
   const moonMeshRef = useRef<THREE.Mesh>(null);
@@ -260,6 +263,7 @@ function OrbitingMoon({
   }, [gl]);
 
   useFrame((_state, delta) => {
+    if (isStorytelling) return;
     // Orbital revolution around Earth (gentle, ~78% slower movement in Moon Museum mode)
     if (moonOrbitRef.current) {
       if (!isMoonMuseum) {
@@ -306,7 +310,7 @@ function OrbitingMoon({
         </mesh>
 
         {/* Dynamic Hover Floating Name Label (Hover only) */}
-        {!isMoonMuseum && (
+        {!isMoonMuseum && !isStorytelling && (
           <Html
             position={[0, moonRadius + 0.18, 0]}
             center
@@ -347,7 +351,7 @@ function OrbitingMoon({
         )}
 
         {/* Lunar Museum Overlay - Abandoned Machines and Callouts */}
-        {isMoonMuseum && (
+        {isMoonMuseum && !isStorytelling && (
           <group>
             {/* Lunar machines positioned at verified geographic coordinates on the surface */}
             {LUNAR_MACHINES.map((m) => (
@@ -474,6 +478,7 @@ export default function SolarSystem({
   hoveredMarsId,
   onSelectMarsMachine,
   onHoverMarsMachine,
+  isStorytelling = false,
 }: SolarSystemProps) {
   // Orbital angles ref for each celestial body
   const anglesRef = useRef<Map<string, number>>(new Map());
@@ -548,7 +553,7 @@ export default function SolarSystem({
 
       // Update orbital revolution
       if (b.orbitRadius > 0) {
-        if (isPlaying) {
+        if (isPlaying && !isStorytelling) {
           const currentAngle = anglesRef.current.get(b.id) ?? 0;
           const newAngle = currentAngle + b.orbitalSpeed * delta * 0.18;
           anglesRef.current.set(b.id, newAngle);
@@ -581,8 +586,8 @@ export default function SolarSystem({
       }
 
       // Axial rotation
-      const isMarsFrozen = b.id === 'mars' && activeMuseum === 'mars' && selectedMarsMachine !== null;
-      if (!isMarsFrozen) {
+      const isMarsFrozen = (b.id === 'mars' && activeMuseum === 'mars' && selectedMarsMachine !== null) || isStorytelling;
+      if (!isMarsFrozen && !isStorytelling) {
         group.rotation.y += b.rotationSpeed * delta * 15;
       }
     });
@@ -615,7 +620,7 @@ export default function SolarSystem({
         const isHovered = hoveredBodyId === b.id;
         const isMuseumActive = activeMuseum !== null;
         // Hover only: selection or focus must NEVER make the planet name appear
-        const showLabel = !isMuseumActive && isHovered;
+        const showLabel = !isMuseumActive && isHovered && !isStorytelling;
 
         return (
           <group
@@ -705,7 +710,7 @@ export default function SolarSystem({
               )}
 
               {/* Mars Museum Overlay - Abandoned Machines and Callouts */}
-              {isMars && activeMuseum === 'mars' && (
+              {isMars && activeMuseum === 'mars' && !isStorytelling && (
                 <group>
                   {/* Surface click target for deselecting machine */}
                   <mesh
@@ -756,6 +761,7 @@ export default function SolarSystem({
                     hoveredId={hoveredId}
                     onSelectMachine={onSelectMachine}
                     onHoverMachine={onHoverMachine}
+                    isStorytelling={isStorytelling}
                   />
                 </Suspense>
               </AssetErrorBoundary>

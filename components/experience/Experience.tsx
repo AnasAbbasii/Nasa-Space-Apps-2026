@@ -44,6 +44,7 @@ interface CameraControllerProps {
   selectedMarsMachine: MarsMachine | null;
   controlsRef: React.RefObject<React.ComponentRef<typeof OrbitControls> | null>;
   planetPositionsRef: React.RefObject<Map<string, THREE.Vector3>>;
+  isStorytelling?: boolean;
 }
 
 function CameraController({
@@ -53,6 +54,7 @@ function CameraController({
   selectedMarsMachine,
   controlsRef,
   planetPositionsRef,
+  isStorytelling = false,
 }: CameraControllerProps) {
   const isTransitioningRef = useRef(false);
   const targetCamPos = useRef(new THREE.Vector3(0, 22, 36));
@@ -129,7 +131,7 @@ function CameraController({
   }, [activeMuseum, selectedBody, selectedMachine, selectedMarsMachine, planetPositionsRef]);
 
   useFrame((state) => {
-    if (!controlsRef.current) return;
+    if (isStorytelling || !controlsRef.current) return;
 
     // Follow moving Moon in Moon Museum mode
     if (activeMuseum === 'moon' && planetPositionsRef.current) {
@@ -308,6 +310,7 @@ export default function Experience() {
 
   // Cinematic Storytelling state
   const [storyMachine, setStoryMachine] = useState<LunarMachine | MarsMachine | null>(null);
+  const isStorytelling = storyMachine !== null;
 
   const controlsRef = useRef<React.ComponentRef<typeof OrbitControls>>(null);
 
@@ -366,7 +369,7 @@ export default function Experience() {
       <ExperienceLoader isBusy={isBusy} />
 
       {/* Solar System Mode Controls: Truly Transparent Liquid Glass Collapsible Sidebar & Museum Shortcuts */}
-      {activeMuseum === null && (
+      {activeMuseum === null && !isStorytelling && (
         <>
           <SolarSidebar
             isOpen={sidebarOpen}
@@ -425,7 +428,7 @@ export default function Experience() {
       )}
 
       {/* Moon & Mars Museum Header: Centered Title & Left Return Button */}
-      {activeMuseum !== null && (
+      {activeMuseum !== null && !isStorytelling && (
         <header className="fixed top-0 left-0 right-0 z-20 pointer-events-none select-none">
           {/* Upper-Left: Return Button (Text Only, Transparent, No Arrow, No Border) */}
           <div
@@ -469,7 +472,7 @@ export default function Experience() {
       )}
 
       {/* Info Panels */}
-      {activeMuseum === null && selectedBody && (
+      {activeMuseum === null && selectedBody && !isStorytelling && (
         <PlanetInfoPanel
           body={selectedBody}
           onClose={() => setSelectedBody(null)}
@@ -478,7 +481,7 @@ export default function Experience() {
         />
       )}
 
-      {activeMuseum === 'moon' && selectedMachine && (
+      {activeMuseum === 'moon' && selectedMachine && !isStorytelling && (
         <InfoPanel
           machine={selectedMachine}
           onClose={() => setSelectedMachine(null)}
@@ -486,7 +489,7 @@ export default function Experience() {
         />
       )}
 
-      {activeMuseum === 'mars' && selectedMarsMachine && (
+      {activeMuseum === 'mars' && selectedMarsMachine && !isStorytelling && (
         <MarsInfoPanel
           machine={selectedMarsMachine}
           onClose={() => setSelectedMarsMachine(null)}
@@ -503,7 +506,7 @@ export default function Experience() {
       )}
 
       {/* Bottom Hint (Only in Solar System Overview Mode) */}
-      {activeMuseum === null && !selectedBody && (
+      {activeMuseum === null && !selectedBody && !isStorytelling && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 pointer-events-none select-none text-center px-4">
           <p className="text-[10px] uppercase tracking-[0.25em] text-white/40 font-light font-sans">
             Drag to explore · Select a planet · Discover Moon & Mars museum gateways
@@ -530,6 +533,7 @@ export default function Experience() {
           toneMappingExposure: 1.15,
         }}
         onPointerMissed={() => {
+          if (isStorytelling) return;
           if (activeMuseum === 'moon') setSelectedMachine(null);
           else if (activeMuseum === 'mars') setSelectedMarsMachine(null);
           else setSelectedBody(null);
@@ -552,6 +556,7 @@ export default function Experience() {
             hoveredMarsId={hoveredMarsId}
             onSelectMarsMachine={setSelectedMarsMachine}
             onHoverMarsMachine={setHoveredMarsId}
+            isStorytelling={isStorytelling}
           />
         </Suspense>
 
@@ -562,10 +567,12 @@ export default function Experience() {
           selectedMarsMachine={selectedMarsMachine}
           controlsRef={controlsRef}
           planetPositionsRef={planetPositionsRef}
+          isStorytelling={isStorytelling}
         />
 
         <OrbitControls
           ref={controlsRef}
+          enabled={!isStorytelling}
           enablePan={!selectedBody && !activeMuseum}
           minDistance={activeMuseum === 'moon' ? 0.35 : activeMuseum === 'mars' ? 0.6 : selectedBody ? selectedBody.planetRadius * 1.3 : 3}
           maxDistance={70}

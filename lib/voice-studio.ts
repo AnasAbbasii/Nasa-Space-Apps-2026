@@ -10,12 +10,20 @@ export function getVoiceStudioConfig() {
   const apiKey = process.env.VOICESTUDIO_API_KEY || 'voicestudio';
   const model = process.env.VOICESTUDIO_MODEL || 'tts-1';
   const voice = process.env.VOICESTUDIO_VOICE || 'default';
+  const mode = process.env.VOICESTUDIO_MODE || 'storytelling';
+  const personality = process.env.VOICESTUDIO_PERSONALITY || 'narrator';
+  const instruct = process.env.VOICESTUDIO_INSTRUCT || 'middle-aged, low pitch';
+  const instructions = 'Calm, authoritative documentary narrator with measured pacing';
 
   return {
     baseUrl,
     apiKey,
     model,
     voice,
+    mode,
+    personality,
+    instruct,
+    instructions,
   };
 }
 
@@ -24,6 +32,10 @@ export interface VoiceStudioHealthResult {
   baseUrl: string;
   model: string;
   voice: string;
+  mode: string;
+  personality: string;
+  instruct: string;
+  storytellingModeActive: boolean;
   models?: string[];
   error?: string;
 }
@@ -53,6 +65,10 @@ export async function checkVoiceStudioHealth(timeoutMs: number = 2500): Promise<
         baseUrl: config.baseUrl,
         model: config.model,
         voice: config.voice,
+        mode: config.mode,
+        personality: config.personality,
+        instruct: config.instruct,
+        storytellingModeActive: false,
         error: `Voice Studio responded with HTTP ${res.status}: ${res.statusText}`,
       };
     }
@@ -65,6 +81,10 @@ export async function checkVoiceStudioHealth(timeoutMs: number = 2500): Promise<
       baseUrl: config.baseUrl,
       model: config.model,
       voice: config.voice,
+      mode: config.mode,
+      personality: config.personality,
+      instruct: config.instruct,
+      storytellingModeActive: config.mode === 'storytelling',
       models,
     };
   } catch (err: unknown) {
@@ -75,6 +95,10 @@ export async function checkVoiceStudioHealth(timeoutMs: number = 2500): Promise<
       baseUrl: config.baseUrl,
       model: config.model,
       voice: config.voice,
+      mode: config.mode,
+      personality: config.personality,
+      instruct: config.instruct,
+      storytellingModeActive: false,
       error: message.includes('aborted')
         ? `Connection to Voice Studio at ${config.baseUrl} timed out (${timeoutMs}ms)`
         : `Cannot connect to Voice Studio at ${config.baseUrl}: ${message}`,
@@ -87,11 +111,14 @@ export interface GenerateSpeechOptions {
   voice?: string;
   model?: string;
   speed?: number;
+  instruct?: string;
+  instructions?: string;
   timeoutMs?: number;
 }
 
 /**
  * Generates an MP3 audio Buffer from text using Voice Studio's OpenAI-compatible endpoint.
+ * Injects dedicated Storytelling Mode emotional narrator instruct settings.
  */
 export async function generateSpeechBuffer(options: GenerateSpeechOptions): Promise<Buffer> {
   const config = getVoiceStudioConfig();
@@ -116,6 +143,8 @@ export async function generateSpeechBuffer(options: GenerateSpeechOptions): Prom
         model: options.model || config.model,
         input: text,
         voice: options.voice || config.voice,
+        instruct: options.instruct || config.instruct,
+        instructions: options.instructions || config.instructions,
         response_format: 'mp3',
         speed: options.speed ?? 1.0,
       }),
@@ -148,6 +177,7 @@ export interface StoryAudioOptions {
   text: string;
   voice?: string;
   model?: string;
+  instruct?: string;
   regenerate?: boolean;
 }
 
@@ -162,7 +192,7 @@ export interface StoryAudioResult {
  * Audio is cached in public/audio/stories/[machineId]/[slideId].mp3 for static serving.
  */
 export async function getOrCreateStoryAudio(options: StoryAudioOptions): Promise<StoryAudioResult> {
-  const { machineId, slideId, text, voice, model, regenerate } = options;
+  const { machineId, slideId, text, voice, model, instruct, regenerate } = options;
 
   // Sanitize IDs to avoid path traversal
   const safeMachineId = machineId.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -189,6 +219,7 @@ export async function getOrCreateStoryAudio(options: StoryAudioOptions): Promise
     input: text,
     voice,
     model,
+    instruct,
   });
 
   // Ensure output directory exists and write file
@@ -196,7 +227,6 @@ export async function getOrCreateStoryAudio(options: StoryAudioOptions): Promise
     fs.mkdirSync(audioDir, { recursive: true });
     fs.writeFileSync(filePath, buffer);
   } catch (err: unknown) {
-    // If running in a read-only serverless environment, log warning but continue
     console.warn(`[VoiceStudio] Could not persist audio file to ${filePath}:`, err);
   }
 
