@@ -8,7 +8,7 @@ interface ThreeDotLoaderProps {
 }
 
 /**
- * Premium three-dot loading indicator for The Museum of Forgotten Machines.
+ * Premium three-dot loading indicator for Beyond the Mission.
  * Features smooth sequential pulsing, subtle opacity/scale transitions,
  * and pure #FFFFFF dots matching the dark space aesthetic with zero borders or cards.
  */

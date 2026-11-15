@@ -15,6 +15,8 @@ interface LunarMachineObjectProps {
   radius?: number;
 }
 
+const _scratchCam = new THREE.Vector3();
+
 export default function LunarMachineObject({
   machine,
   isActive,
@@ -38,12 +40,12 @@ export default function LunarMachineObject({
   useFrame((state) => {
     if (!groupRef.current) return;
 
-    // Transform camera position into local coordinate space
-    const camPos = state.camera.position.clone();
-    groupRef.current.worldToLocal(camPos);
+    // Transform camera position into local coordinate space (zero allocation)
+    _scratchCam.copy(state.camera.position);
+    groupRef.current.worldToLocal(_scratchCam);
 
-    const toCam = camPos.sub(surfacePoint).normalize();
-    const dot = normal.dot(toCam);
+    _scratchCam.sub(surfacePoint).normalize();
+    const dot = normal.dot(_scratchCam);
 
     // Horizon deadband hysteresis: > 0.05 to appear, < -0.01 to disappear
     const wasVisible = wasVisibleRef.current;

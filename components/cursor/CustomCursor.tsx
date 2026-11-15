@@ -56,28 +56,38 @@ export default function CustomCursor() {
       setIsDown(false);
     };
 
-    // Track mouse position directly via DOM to avoid React re-renders on move
-    const onPointerMove = (e: PointerEvent) => {
-      updatePosition(e.clientX, e.clientY);
+    let rafId: number | null = null;
+    let pendingX = 0;
+    let pendingY = 0;
+    let pendingTarget: HTMLElement | null = null;
+
+    const flushCursor = () => {
+      rafId = null;
+      updatePosition(pendingX, pendingY);
       showCursor();
 
-      // DOM element hover detection (for standard links & buttons)
-      const target = e.target as HTMLElement | null;
-      if (target) {
-        if (target.closest('[data-cursor="focus"]')) {
+      if (pendingTarget) {
+        if (pendingTarget.closest('[data-cursor="focus"]')) {
           updateCursorType('focus');
         } else if (
-          target.closest('button, a, [data-cursor="button"], [role="button"], input, select, textarea')
+          pendingTarget.closest('button, a, [data-cursor="button"], [role="button"], input, select, textarea')
         ) {
           if (cursorStore.get() !== 'focus' && cursorStore.get() !== 'grabbing') {
             updateCursorType('button');
           }
-        } else {
-          // If not hovering an interactive DOM element and 3D store is default
-          if (cursorStore.get() === 'default') {
-            updateCursorType('default');
-          }
+        } else if (cursorStore.get() === 'default') {
+          updateCursorType('default');
         }
+      }
+    };
+
+    // Coalesce high-polling mouse events to 1 rAF per display refresh
+    const onPointerMove = (e: PointerEvent) => {
+      pendingX = e.clientX;
+      pendingY = e.clientY;
+      pendingTarget = e.target as HTMLElement | null;
+      if (rafId === null) {
+        rafId = requestAnimationFrame(flushCursor);
       }
     };
 
@@ -126,6 +136,9 @@ export default function CustomCursor() {
     document.addEventListener('visibilitychange', onVisibilityChange);
 
     return () => {
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
       mediaQuery.removeEventListener('change', onMediaChange);
       unsubscribe();
       window.removeEventListener('pointermove', onPointerMove);

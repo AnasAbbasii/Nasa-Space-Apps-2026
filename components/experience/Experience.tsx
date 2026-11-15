@@ -23,6 +23,17 @@ import SolarSidebar from './solar/SolarSidebar';
 
 type MuseumMode = 'moon' | 'mars' | null;
 
+// Reusable scratch vectors to eliminate per-frame GC allocations
+const _targetCam = new THREE.Vector3();
+const _camToPlanet = new THREE.Vector3();
+const _camRight = new THREE.Vector3();
+const _desiredTarget = new THREE.Vector3();
+const _upVec = new THREE.Vector3(0, 1, 0);
+const _radial = new THREE.Vector3();
+const _tangent = new THREE.Vector3();
+const _toSun = new THREE.Vector3();
+const _desiredPos = new THREE.Vector3();
+
 interface CameraControllerProps {
   activeMuseum: MuseumMode;
   selectedBody: CelestialBody | null;
@@ -122,20 +133,20 @@ function CameraController({
       const livePos = planetPositionsRef.current.get('moon');
       if (livePos) {
         const focusDist = selectedMachine ? 0.20 * 2.8 : 0.20 * 3.4;
-        const targetCam = new THREE.Vector3(
+        _targetCam.set(
           livePos.x,
           livePos.y + (selectedMachine ? focusDist * 0.18 : focusDist * 0.22),
           livePos.z + focusDist * 0.95,
         );
-        const camToPlanet = livePos.clone().sub(targetCam).normalize();
-        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+        _camToPlanet.subVectors(livePos, _targetCam).normalize();
+        _camRight.crossVectors(_camToPlanet, _upVec).normalize();
         const defaultOffset = 0.20 * 0.45;
         const selectedOffset = 0.20 * 0.70;
-        const frameOffset = camRight.multiplyScalar(selectedMachine ? selectedOffset : defaultOffset);
-        const desiredTarget = livePos.clone().add(frameOffset);
+        const frameOffset = selectedMachine ? selectedOffset : defaultOffset;
+        _desiredTarget.copy(livePos).addScaledVector(_camRight, frameOffset);
 
-        state.camera.position.lerp(targetCam, 0.05);
-        controlsRef.current.target.lerp(desiredTarget, 0.05);
+        state.camera.position.lerp(_targetCam, 0.05);
+        controlsRef.current.target.lerp(_desiredTarget, 0.05);
         controlsRef.current.update();
         return;
       }
@@ -146,20 +157,20 @@ function CameraController({
       const livePos = planetPositionsRef.current.get('mars');
       if (livePos) {
         const focusDist = selectedMarsMachine ? 0.42 * 2.8 : 0.42 * 3.4;
-        const targetCam = new THREE.Vector3(
+        _targetCam.set(
           livePos.x,
           livePos.y + (selectedMarsMachine ? focusDist * 0.18 : focusDist * 0.22),
           livePos.z + focusDist * 0.95,
         );
-        const camToPlanet = livePos.clone().sub(targetCam).normalize();
-        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
+        _camToPlanet.subVectors(livePos, _targetCam).normalize();
+        _camRight.crossVectors(_camToPlanet, _upVec).normalize();
         const defaultOffset = 0.42 * 0.45;
         const selectedOffset = 0.42 * 0.70;
-        const frameOffset = camRight.multiplyScalar(selectedMarsMachine ? selectedOffset : defaultOffset);
-        const desiredTarget = livePos.clone().add(frameOffset);
+        const frameOffset = selectedMarsMachine ? selectedOffset : defaultOffset;
+        _desiredTarget.copy(livePos).addScaledVector(_camRight, frameOffset);
 
-        state.camera.position.lerp(targetCam, 0.05);
-        controlsRef.current.target.lerp(desiredTarget, 0.05);
+        state.camera.position.lerp(_targetCam, 0.05);
+        controlsRef.current.target.lerp(_desiredTarget, 0.05);
         controlsRef.current.update();
         return;
       }
@@ -175,22 +186,25 @@ function CameraController({
           ? selectedBody.planetRadius * 3.2
           : selectedBody.planetRadius * 3.4;
 
-        const radial = livePos.lengthSq() > 0.01 ? livePos.clone().normalize() : new THREE.Vector3(0, 0, 1);
-        const tangent = new THREE.Vector3(-radial.z, 0, radial.x);
-        const toSun = radial.clone().negate();
+        if (livePos.lengthSq() > 0.01) {
+          _radial.copy(livePos).normalize();
+        } else {
+          _radial.set(0, 0, 1);
+        }
+        _tangent.set(-_radial.z, 0, _radial.x);
+        _toSun.copy(_radial).negate();
 
-        const camX = livePos.x + toSun.x * (focusDist * 0.65) + tangent.x * (focusDist * 0.65);
+        const camX = livePos.x + _toSun.x * (focusDist * 0.65) + _tangent.x * (focusDist * 0.65);
         const camY = livePos.y + focusDist * 0.28;
-        const camZ = livePos.z + toSun.z * (focusDist * 0.65) + tangent.z * (focusDist * 0.65);
-        const desiredPos = new THREE.Vector3(camX, camY, camZ);
+        const camZ = livePos.z + _toSun.z * (focusDist * 0.65) + _tangent.z * (focusDist * 0.65);
+        _desiredPos.set(camX, camY, camZ);
 
-        const camToPlanet = livePos.clone().sub(desiredPos).normalize();
-        const camRight = new THREE.Vector3().crossVectors(camToPlanet, new THREE.Vector3(0, 1, 0)).normalize();
-        const frameOffset = camRight.multiplyScalar(selectedBody.planetRadius * 0.65);
-        const desiredTarget = livePos.clone().add(frameOffset);
+        _camToPlanet.subVectors(livePos, _desiredPos).normalize();
+        _camRight.crossVectors(_camToPlanet, _upVec).normalize();
+        _desiredTarget.copy(livePos).addScaledVector(_camRight, selectedBody.planetRadius * 0.65);
 
-        state.camera.position.lerp(desiredPos, 0.05);
-        controlsRef.current.target.lerp(desiredTarget, 0.05);
+        state.camera.position.lerp(_desiredPos, 0.05);
+        controlsRef.current.target.lerp(_desiredTarget, 0.05);
         controlsRef.current.update();
         return;
       }
@@ -480,6 +494,7 @@ export default function Experience() {
 
       {/* Main 3D Canvas - Unified Continuous Solar System Experience */}
       <Canvas
+        dpr={[1, 2]}
         camera={{
           position: [0, 22, 36],
           fov: 45,
@@ -487,8 +502,11 @@ export default function Experience() {
           far: 200,
         }}
         gl={{
+          powerPreference: 'high-performance',
           antialias: true,
           alpha: true,
+          stencil: false,
+          depth: true,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.15,
         }}

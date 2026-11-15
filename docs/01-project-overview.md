@@ -1,7 +1,7 @@
 # 01 — Project Overview
 
 ## Project Name & Identity
-**The Museum of Forgotten Machines**  
+**Beyond the Mission** (formerly *The Museum of Forgotten Machines*)  
 *Tagline:* *"Humanity may leave its machines behind, but it should never leave their stories forgotten."*  
 *Entry Title:* **Abandoned but not Forgotten**
 

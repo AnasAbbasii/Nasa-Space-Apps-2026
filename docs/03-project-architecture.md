@@ -100,7 +100,7 @@ appfolder/
 ## 3. Core Application Entry Points
 
 ### 1. Root Layout (`app/layout.tsx`)
-- Configures page metadata (`title: "Abandoned but not Forgotten"`).
+- Configures page metadata (`title: "Beyond the Mission"`).
 - Injects external typography links for Google Fonts (`Space Grotesk`).
 - Renders the **persistent full-screen cosmic background** using `next/image` with dual dark gradient overlays (`bg-black/45` and radial vignette). This background stays mounted across all page navigations.
 

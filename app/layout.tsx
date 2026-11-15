@@ -1,13 +1,49 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Image from "next/image";
+import { Space_Grotesk } from "next/font/google";
 import spaceBackground from "@/components/spacebackground.jpg";
 import CustomCursor from "@/components/cursor/CustomCursor";
 import "./globals.css";
 
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-space-grotesk",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+};
+
 export const metadata: Metadata = {
-  title: "Abandoned but not Forgotten",
+  title: "Beyond the Mission",
   description:
-    "Humanity may leave its machines behind, but it should never leave their stories forgotten.",
+    "Explore the stories of humanity's abandoned space exploration equipment on the Moon and Mars.",
+  applicationName: "Beyond the Mission",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  openGraph: {
+    title: "Beyond the Mission",
+    description:
+      "Explore the stories of humanity's abandoned space exploration equipment on the Moon and Mars.",
+    siteName: "Beyond the Mission",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Beyond the Mission",
+    description:
+      "Explore the stories of humanity's abandoned space exploration equipment on the Moon and Mars.",
+  },
 };
 
 export default function RootLayout({
@@ -16,15 +52,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="h-full antialiased dark">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`h-full antialiased dark ${spaceGrotesk.variable}`}>
       <body className="min-h-full flex flex-col bg-black text-white selection:bg-white/20 selection:text-white overflow-x-hidden font-sans">
         {/* Persistent Full-Screen Space Background across all pages */}
         <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none select-none">
@@ -33,7 +61,7 @@ export default function RootLayout({
             alt="Space Background"
             fill
             priority
-            quality={90}
+            quality={85}
             className="object-cover object-center"
             sizes="100vw"
           />

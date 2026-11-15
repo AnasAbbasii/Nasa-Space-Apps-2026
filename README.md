@@ -1,4 +1,4 @@
-# The Museum of Forgotten Machines
+# Beyond the Mission
 > *"Humanity may leave its machines behind, but it should never leave their stories forgotten."*
 
 An immersive, cinematic, interactive 3D Solar System and planetary exploration museum developed for the **NASA Space Apps Challenge 2026**.

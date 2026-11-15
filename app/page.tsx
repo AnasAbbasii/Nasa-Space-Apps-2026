@@ -1,11 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
+
+  // Intelligently prefetch experience route for instantaneous transition
+  useEffect(() => {
+    router.prefetch("/experience");
+  }, [router]);
 
   const handleProceed = useCallback(() => {
     if (isNavigating) return;
@@ -26,7 +31,7 @@ export default function LandingPage() {
           handleProceed();
         }
       }}
-      aria-label="Enter Abandoned but not Forgotten"
+      aria-label="Enter Beyond the Mission"
       className={`relative flex min-h-screen w-full flex-col items-center justify-between px-6 py-12 sm:py-16 select-none cursor-pointer outline-none transition-opacity duration-700 ease-out ${
         isNavigating ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}

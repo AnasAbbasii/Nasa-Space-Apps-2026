@@ -26,6 +26,9 @@ interface CalloutEntry {
   geometry: LineGeometry;
   material: LineMaterial;
   positions: Float32Array; // 2 points (6 floats) for a straight connection line
+  surfacePoint: THREE.Vector3;
+  normal: THREE.Vector3;
+  rawY: number;
   currentX: number;
   currentY: number;
   currentOpacity: number;
@@ -34,10 +37,12 @@ interface CalloutEntry {
   htmlDivRef: React.RefObject<HTMLDivElement | null>;
 }
 
+// Module scratch vectors for zero-allocation useFrame
+const _marsCalloutCamPos = new THREE.Vector3();
+const _marsCalloutToCam = new THREE.Vector3();
+
 interface LayoutCandidate {
   entry: CalloutEntry;
-  worldPos: THREE.Vector3;
-  normal: THREE.Vector3;
   dot: number;
   isNearSide: boolean;
   limbAlpha: number;
@@ -63,8 +68,9 @@ export default function MarsCallouts({
   const entriesRef = useRef<Map<string, CalloutEntry>>(new Map());
   const localRootRef = useRef<THREE.Group>(null);
   const hysteresisMapRef = useRef<Map<string, boolean>>(new Map());
+  const candidatesRef = useRef<LayoutCandidate[]>([]);
 
-  // Initialize Line2 instances with thin delicate white lines
+  // Initialize Line2 instances with thin delicate white lines and precompute surface coordinates
   const entries = useMemo(() => {
     const map = new Map<string, CalloutEntry>();
     for (const m of machines) {
@@ -84,6 +90,10 @@ export default function MarsCallouts({
       const line = new Line2(geom, mat);
       line.visible = false;
 
+      const surfacePoint = marsLatLonToVector3(m.lat, m.lon, radius);
+      const normal = surfacePoint.clone().normalize();
+      const rawY = THREE.MathUtils.clamp(surfacePoint.y * 1.25, -radius * 0.75, radius * 0.75);
+
       const initialY = (m.lat / 90) * (radius * 0.65);
       const initialSide = m.lon > 180 ? -1 : 1;
       const initialX = initialSide * radius * 1.35;
@@ -94,6 +104,9 @@ export default function MarsCallouts({
         geometry: geom,
         material: mat,
         positions,
+        surfacePoint,
+        normal,
+        rawY,
         currentX: initialX,
         currentY: initialY,
         currentOpacity: 0,
@@ -117,11 +130,11 @@ export default function MarsCallouts({
   }, [entries]);
 
   useFrame((state) => {
-    // Transform camera position into Mars's local coordinate frame
-    const camPos = state.camera.position.clone();
+    // Transform camera position into Mars's local coordinate frame (zero allocation)
+    _marsCalloutCamPos.copy(state.camera.position);
     const container = marsGroupRef?.current ?? localRootRef.current;
     if (container) {
-      container.worldToLocal(camPos);
+      container.worldToLocal(_marsCalloutCamPos);
     }
 
     // Visually balanced distance outside the sphere silhouette (Priority 2)
@@ -130,20 +143,17 @@ export default function MarsCallouts({
     const maxY = radius * 0.88;
     const minY = -radius * 0.88;
 
-    const candidates: LayoutCandidate[] = [];
+    const candidates = candidatesRef.current;
+    candidates.length = 0;
 
-    // 1. Calculate geographic positions and horizon visibility with hysteresis (State A, B, C)
+    // 1. Calculate horizon visibility with hysteresis using precomputed coordinates
     for (const m of machines) {
       const entry = entries.get(m.id);
       if (!entry) continue;
 
-      const localPos = marsLatLonToVector3(m.lat, m.lon, radius);
-      const worldPos = localPos.clone();
-      const normal = worldPos.clone().normalize();
-
       // Dot product with camera vector: > 0 means near side, < 0 means far side
-      const toCam = camPos.clone().sub(worldPos).normalize();
-      const dot = normal.dot(toCam);
+      _marsCalloutToCam.subVectors(_marsCalloutCamPos, entry.surfacePoint).normalize();
+      const dot = entry.normal.dot(_marsCalloutToCam);
 
       // Limb hysteresis: > 0.05 to appear, < -0.01 to disappear (Anti-flicker threshold)
       const wasNearSide = hysteresisMapRef.current.get(m.id) ?? false;
@@ -156,15 +166,13 @@ export default function MarsCallouts({
       // Side hysteresis around the central meridian to prevent jumping
       const prevSide = entry.currentSide;
       let side = prevSide;
-      if (prevSide === 1 && worldPos.x < -radius * 0.15) {
+      if (prevSide === 1 && entry.surfacePoint.x < -radius * 0.15) {
         side = -1;
-      } else if (prevSide === -1 && worldPos.x > radius * 0.15) {
+      } else if (prevSide === -1 && entry.surfacePoint.x > radius * 0.15) {
         side = 1;
       } else if (prevSide === 0) {
-        side = worldPos.x >= 0 ? 1 : -1;
+        side = entry.surfacePoint.x >= 0 ? 1 : -1;
       }
-
-      const rawY = THREE.MathUtils.clamp(worldPos.y * 1.25, -radius * 0.75, radius * 0.75);
 
       // Priority ranking: Selected (highest) > Hovered > Default
       const isSelected = m.id === selectedMachine?.id;
@@ -173,14 +181,12 @@ export default function MarsCallouts({
 
       candidates.push({
         entry,
-        worldPos,
-        normal,
         dot,
         isNearSide,
         limbAlpha,
         side,
-        rawY,
-        targetY: rawY,
+        rawY: entry.rawY,
+        targetY: entry.rawY,
         priority,
         isStateB_suppressed: false,
       });
@@ -252,9 +258,9 @@ export default function MarsCallouts({
     resolveSide(-1); // Left group
     resolveSide(1);  // Right group
 
-    // 3. Update connection lines, damping, and label transforms
+    // 3. Update connection lines, damping, and label transforms (zero allocation)
     for (const cand of candidates) {
-      const { entry, worldPos, isNearSide, limbAlpha, isStateB_suppressed, side, targetY } = cand;
+      const { entry, isNearSide, limbAlpha, isStateB_suppressed, side, targetY } = cand;
       const m = entry.machine;
       const isActive = m.id === hoveredId || m.id === selectedMachine?.id;
 
@@ -271,18 +277,15 @@ export default function MarsCallouts({
       entry.currentX = THREE.MathUtils.lerp(entry.currentX, targetX, 0.14);
       entry.currentOpacity = THREE.MathUtils.lerp(entry.currentOpacity, targetOpacity, 0.14);
 
-      // P0: verified geographic coordinate on Martian surface (never moved)
-      const P0 = worldPos;
-      // Pend: external label anchor point outside silhouette
-      const Pend = new THREE.Vector3(entry.currentX, entry.currentY, worldPos.z + radius * 0.08);
+      const pendZ = entry.surfacePoint.z + radius * 0.08;
 
-      // Set straight 2-point line: P0 -> Pend
-      entry.positions[0] = P0.x;
-      entry.positions[1] = P0.y;
-      entry.positions[2] = P0.z;
-      entry.positions[3] = Pend.x;
-      entry.positions[4] = Pend.y;
-      entry.positions[5] = Pend.z;
+      // Set straight 2-point line: P0 (surfacePoint) -> Pend (label anchor)
+      entry.positions[0] = entry.surfacePoint.x;
+      entry.positions[1] = entry.surfacePoint.y;
+      entry.positions[2] = entry.surfacePoint.z;
+      entry.positions[3] = entry.currentX;
+      entry.positions[4] = entry.currentY;
+      entry.positions[5] = pendZ;
       entry.geometry.setPositions(entry.positions);
 
       // Line styling: delicate, thin, uniform white (~1-1.25 px)
@@ -292,9 +295,9 @@ export default function MarsCallouts({
       entry.material.opacity = entry.currentOpacity;
       entry.line.visible = entry.currentOpacity > 0.02;
 
-      // Position 3D label group at line termination point Pend
+      // Position 3D label group at line termination point (without object allocation)
       if (entry.groupRef.current) {
-        entry.groupRef.current.position.set(Pend.x, Pend.y, Pend.z);
+        entry.groupRef.current.position.set(entry.currentX, entry.currentY, pendZ);
       }
 
       // Update HTML label visibility and interactivity

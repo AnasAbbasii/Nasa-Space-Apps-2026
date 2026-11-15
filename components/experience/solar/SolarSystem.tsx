@@ -92,6 +92,8 @@ function FbxPlanetModel({
       clone.traverse((child) => {
         if ((child as THREE.Mesh).isMesh) {
           const mesh = child as THREE.Mesh;
+          // Bypass raycasting on high-poly meshes to protect 60fps interaction loop
+          mesh.raycast = () => {};
           if (emissive) {
             mesh.material = new THREE.MeshBasicMaterial({ map: texture });
           } else {
@@ -106,6 +108,22 @@ function FbxPlanetModel({
     }
     return clone;
   }, [fbx, texture, radius, emissive]);
+
+  // Clean up materials on unmount to prevent GPU leaks
+  useEffect(() => {
+    return () => {
+      model.traverse((child) => {
+        if ((child as THREE.Mesh).isMesh) {
+          const mesh = child as THREE.Mesh;
+          if (Array.isArray(mesh.material)) {
+            mesh.material.forEach((m) => m.dispose());
+          } else if (mesh.material) {
+            mesh.material.dispose();
+          }
+        }
+      });
+    };
+  }, [model]);
 
   return <primitive object={model} />;
 }
@@ -126,7 +144,7 @@ function FallbackSphere({
   if (texture) texture.colorSpace = THREE.SRGBColorSpace;
 
   return (
-    <mesh>
+    <mesh raycast={() => null}>
       <sphereGeometry args={[radius, 48, 48]} />
       {emissive ? (
         <meshBasicMaterial map={texture ?? undefined} color={texture ? '#ffffff' : color} />
@@ -148,7 +166,7 @@ function SaturnRings({ innerRadius = 1.3, outerRadius = 2.2 }: { innerRadius?: n
   ringTexture.colorSpace = THREE.SRGBColorSpace;
 
   return (
-    <mesh rotation={[Math.PI / 2, 0, 0]}>
+    <mesh rotation={[Math.PI / 2, 0, 0]} raycast={() => null}>
       <ringGeometry args={[innerRadius, outerRadius, 64]} />
       <meshStandardMaterial
         map={ringTexture}
@@ -250,9 +268,12 @@ function OrbitingMoon({
     }
     // Track Moon world position for camera controller
     if (moonMeshRef.current && planetPositionsRef.current) {
-      const wp = new THREE.Vector3();
+      let wp = planetPositionsRef.current.get('moon');
+      if (!wp) {
+        wp = new THREE.Vector3();
+        planetPositionsRef.current.set('moon', wp);
+      }
       moonMeshRef.current.getWorldPosition(wp);
-      planetPositionsRef.current.set('moon', wp);
     }
   });
 
@@ -355,6 +376,11 @@ function OrbitingMoon({
 }
 
 // Dynamic lighting controller that provides balanced illumination during planet focus
+// Reusable scratch vectors for focus lighting calculations
+const _lightSunDir = new THREE.Vector3();
+const _lightKeyPos = new THREE.Vector3();
+const _lightFillPos = new THREE.Vector3();
+
 function DynamicFocusLighting({
   selectedBody,
   activeMuseum,
@@ -373,8 +399,6 @@ function DynamicFocusLighting({
     const isSun = selectedBody?.id === 'sun';
 
     // 1. Ambient Light Adjustment
-    // In overview: 0.08 ambient.
-    // In focus: smoothly lerp to 0.30 so dark side has natural ambient detail and never crushes to pure black.
     const targetAmbient = isFocused ? 0.30 : 0.08;
     if (ambientLightRef.current) {
       ambientLightRef.current.intensity = THREE.MathUtils.lerp(
@@ -384,24 +408,30 @@ function DynamicFocusLighting({
       );
     }
 
-    // 2. Focused Planet Key & Fill Lights
+    // 2. Focused Planet Key & Fill Lights (zero allocation in loop)
     if (isFocused && !isSun) {
       const targetId = activeMuseum === 'moon' ? 'moon' : activeMuseum === 'mars' ? 'mars' : selectedBody?.id;
       const planetPos = targetId && planetPositionsRef.current ? planetPositionsRef.current.get(targetId) : null;
 
       if (planetPos && keyLightRef.current && fillLightRef.current) {
-        // Key light shines from Sun's direction toward the planet with natural sunlight
-        const sunDir = planetPos.lengthSq() > 0.01 ? planetPos.clone().normalize() : new THREE.Vector3(0, 0, 1);
-        const keyPos = planetPos.clone().sub(sunDir.multiplyScalar(4.0));
-        keyPos.y += 1.5;
-        keyLightRef.current.position.copy(keyPos);
+        if (planetPos.lengthSq() > 0.01) {
+          _lightSunDir.copy(planetPos).normalize();
+        } else {
+          _lightSunDir.set(0, 0, 1);
+        }
+        _lightKeyPos.copy(planetPos).addScaledVector(_lightSunDir, -4.0);
+        _lightKeyPos.y += 1.5;
+        keyLightRef.current.position.copy(_lightKeyPos);
         keyLightRef.current.target.position.copy(planetPos);
         keyLightRef.current.target.updateMatrixWorld();
         keyLightRef.current.intensity = THREE.MathUtils.lerp(keyLightRef.current.intensity, 2.4, 0.08);
 
-        // Fill light shines softly from the side/camera direction
-        const fillPos = planetPos.clone().add(new THREE.Vector3(sunDir.z * 3.5, 2.0, -sunDir.x * 3.5));
-        fillLightRef.current.position.copy(fillPos);
+        _lightFillPos.set(
+          planetPos.x + _lightSunDir.z * 3.5,
+          planetPos.y + 2.0,
+          planetPos.z - _lightSunDir.x * 3.5,
+        );
+        fillLightRef.current.position.copy(_lightFillPos);
         fillLightRef.current.target.position.copy(planetPos);
         fillLightRef.current.target.updateMatrixWorld();
         fillLightRef.current.intensity = THREE.MathUtils.lerp(fillLightRef.current.intensity, 0.70, 0.08);
@@ -526,15 +556,25 @@ export default function SolarSystem({
         const z = Math.sin(angle) * b.orbitRadius;
         group.position.set(x, 0, z);
 
-        // Store world position for camera controller
+        // Store world position for camera controller (zero allocation in loop)
         if (planetPositionsRef.current) {
-          planetPositionsRef.current.set(b.id, new THREE.Vector3(x, 0, z));
+          let pos = planetPositionsRef.current.get(b.id);
+          if (!pos) {
+            pos = new THREE.Vector3();
+            planetPositionsRef.current.set(b.id, pos);
+          }
+          pos.set(x, 0, z);
         }
       } else {
         // Sun at center
         group.position.set(0, 0, 0);
         if (planetPositionsRef.current) {
-          planetPositionsRef.current.set(b.id, new THREE.Vector3(0, 0, 0));
+          let pos = planetPositionsRef.current.get(b.id);
+          if (!pos) {
+            pos = new THREE.Vector3();
+            planetPositionsRef.current.set(b.id, pos);
+          }
+          pos.set(0, 0, 0);
         }
       }
 
@@ -584,33 +624,32 @@ export default function SolarSystem({
             }}
           >
             {/* Tilt container for axial inclination */}
-            <group
-              rotation={[THREE.MathUtils.degToRad(b.axialTilt), 0, 0]}
-              onPointerOver={(e) => {
-                e.stopPropagation();
-                handlePointerOver(b.id);
-              }}
-              onPointerOut={(e) => {
-                e.stopPropagation();
-                handlePointerOut(b.id);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (b.id === 'mars') {
-                  if (activeMuseum === 'mars') {
-                    onSelectMarsMachine(null);
+            <group rotation={[THREE.MathUtils.degToRad(b.axialTilt), 0, 0]}>
+              {/* Lightweight Interactive Hit Area: restricts raycasting to 256 triangles */}
+              <mesh
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                  handlePointerOver(b.id);
+                }}
+                onPointerOut={(e) => {
+                  e.stopPropagation();
+                  handlePointerOut(b.id);
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (b.id === 'mars') {
+                    if (activeMuseum === 'mars') {
+                      onSelectMarsMachine(null);
+                    } else {
+                      onEnterMarsMuseum();
+                    }
+                  } else if (selectedBody?.id === b.id) {
+                    onSelectBody(null);
                   } else {
-                    onEnterMarsMuseum();
+                    onSelectBody(b);
                   }
-                } else if (selectedBody?.id === b.id) {
-                  onSelectBody(null);
-                } else {
-                  onSelectBody(b);
-                }
-              }}
-            >
-              {/* Interactive Hit Area */}
-              <mesh>
+                }}
+              >
                 <sphereGeometry args={[b.planetRadius * (isSaturn ? 2.4 : 1.35), 16, 16]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
               </mesh>
