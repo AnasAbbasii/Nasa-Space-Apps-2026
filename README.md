@@ -340,7 +340,7 @@ npm run start
 ## 📚 Complete Project Documentation
 
 In addition to this README, comprehensive technical documentation is available:
-- 📕 [**Complete Project Documentation PDF**](./documentation/complete%20documentation.pdf) — A 45+ page publication-ready document with technical tables, coordinate mathematics, and mission logs.
+- 📕 [**Complete Project Documentation PDF**](./documentation/Complete%20documentataion.pdf) — A 45+ page publication-ready document with technical tables, coordinate mathematics, and mission logs.
 
 - 📝 [**Documentation Source Markdown**](./documentation/Beyond_the_Mission_Documentation_Source.md) — Raw markdown source of the complete technical report.
 - 📑 [**Project Documentation Chapters (`docs/`)**](./docs):
